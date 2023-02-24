@@ -1,2 +1,2 @@
-# State-Machine
-Python implementation of simplified State Machine. Uses ANTLR4.
+# State-Machines
+Python implementation of simplified State Machines. Uses ANTLR4.
