@@ -125,7 +125,7 @@ class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     def visitSimple_state(self, ctx: StateMachineParser.Simple_stateContext):
         startToken: Token = ctx.STATE().symbol
         endToken: Token = ctx.NAME().symbol
-        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1)
+        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
 
         if not self.stateRegistry.get(ctx.NAME().getText()) is None:
             raise Exception('State names must be unique. Name ' +
@@ -137,7 +137,7 @@ class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     def visitComposite_state(self, ctx: StateMachineParser.Composite_stateContext):
         startToken: Token = ctx.COMPOSITE_STATE().symbol
         endToken: Token = ctx.NAME().symbol
-        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1)
+        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
 
         if not self.stateRegistry.get(ctx.NAME().getText()) is None:
             raise Exception('State names must be unique. Name ' +
