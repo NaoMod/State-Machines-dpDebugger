@@ -17,7 +17,8 @@ class ServiceHandler:
         semanticsInterface (statemachine_ls.server.SemanticsInterface.SemanticsInterface): Interface for execution semantics services.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, isRunningAsContainer: bool) -> None:
+        self.isRunningAsContainer: bool = isRunningAsContainer
         self.registry: ASTRegistry = ASTRegistry()
         self.mandatoryInterface: MandatoryInterface = MandatoryInterface(
             self.registry)
