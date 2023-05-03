@@ -14,7 +14,6 @@ def main(argv):
         description='JSON-RPC runtime for a State Machines DSL')
 
     parser.add_argument('port', type=int, help='port at which the server should listen')
-    parser.add_argument('-d', '--docker', action='store_true', help='whether this program is launched in a Docker container.')
     args = parser.parse_args()
 
     # Bind JSON-RPC server to the given port
@@ -24,9 +23,10 @@ def main(argv):
 
     # Start JSON-RPC server
     print("Server running at port " + str(args.port) + "...")
-    serviceHandler: ServiceHandler = ServiceHandler(args.docker)
+    serviceHandler: ServiceHandler = ServiceHandler()
     while True:
         s, _ = ss.accept()
+        print("Accepted")
         JSONRpc(s, serviceHandler, framing_cls=bsonrpc.JSONFramingNone,
                 threading_model=ThreadingModel.GEVENT, concurrent_request_handling=ThreadingModel.GEVENT)
 

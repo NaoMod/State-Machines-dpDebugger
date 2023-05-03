@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from bsonrpc import request, service_class
 from statemachine_ast.ASTRegistry import ASTRegistry
 
+from .LRP import CheckBreakpointArgs
 from .MandatoryInterface import MandatoryInterface
 from .SemanticsInterface import InitArguments, SemanticsInterface
-from .LRP import CheckBreakpointArgs
 
 
 @service_class
@@ -17,8 +19,7 @@ class ServiceHandler:
         semanticsInterface (statemachine_ls.server.SemanticsInterface.SemanticsInterface): Interface for execution semantics services.
     """
 
-    def __init__(self, isRunningAsContainer: bool) -> None:
-        self.isRunningAsContainer: bool = isRunningAsContainer
+    def __init__(self) -> None:
         self.registry: ASTRegistry = ASTRegistry()
         self.mandatoryInterface: MandatoryInterface = MandatoryInterface(
             self.registry)
@@ -27,6 +28,7 @@ class ServiceHandler:
 
     @request
     def parse(self, args: dict) -> dict:
+        print("Parsing...")
         return self.mandatoryInterface.parse(args['sourceFile']).toDict()
 
     @request
