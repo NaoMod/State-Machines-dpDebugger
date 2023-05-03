@@ -8,6 +8,7 @@ from server.LRP import (BreakpointParameter, BreakpointType,
                         InitArguments, InitResponse, RuntimeState,
                         StepResponse)
 from server.Runtime import Runtime
+from server.ServerExceptions import ExecutionAlreadyDoneError
 
 breakpoints = [
     BreakpointType('stateMachine.stateReached',
@@ -92,7 +93,7 @@ class SemanticsInterface:
 
         runtime: Runtime = self.runtimes[sourceFile]
         if runtime.nextTransition is None:
-            raise Exception('Execution done, no runtime state.')
+            raise ExecutionAlreadyDoneError()
 
         return GetRuntimeStateResponse(RuntimeState(self.runtimes[sourceFile]))
 
@@ -112,5 +113,4 @@ class SemanticsInterface:
         """
 
         if self.runtimes[sourceFile] is None:
-            raise Exception('No runtime for source file \'' +
-                            sourceFile + '\'.')
+            raise ValueError(f'No runtime for source file {sourceFile}.')

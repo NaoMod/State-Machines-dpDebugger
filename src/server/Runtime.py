@@ -3,6 +3,8 @@ from __future__ import annotations
 import statemachine_ast.StateMachine as stateMachineModule
 
 import server.LRP as lrpModule
+from server.ServerExceptions import (ExecutionAlreadyDoneError,
+                                     UnknownBreakpointTypeError)
 
 
 class Runtime:
@@ -19,7 +21,7 @@ class Runtime:
     def __init__(self, stateMachine: stateMachineModule.StateMachine, inputs: list[str]) -> None:
         self.stateMachine: stateMachineModule.StateMachine = stateMachine
         if stateMachine.initialState is None:
-            raise Exception('No initial state.')
+            raise ValueError('No initial state.')
 
         self.inputs: list[str] = inputs
         self.outputs: list[str] = []
@@ -29,7 +31,7 @@ class Runtime:
 
     def nexStep(self) -> stateMachineModule.Transition | None:
         if self.nextTransition is None:
-            raise Exception('Execution already done.')
+            raise ExecutionAlreadyDoneError()
 
         self.currentState = self.nextTransition.target.getNestedInitialState()
         self.nextConsumedInputIndex += 1
@@ -74,24 +76,25 @@ class Runtime:
                     message = f'State {state.name} is about to be reached.'
 
             case 'stateMachine.stateExited':
-                state: stateMachineModule.State | None = self._findExitedState(self.currentState, self.nextTransition.source, elementId)
+                state: stateMachineModule.State | None = self._findExitedState(
+                    self.currentState, self.nextTransition.source, elementId)
                 isActivated = not state is None
                 if isActivated:
                     message = f'State {state.name} is about to be exited.'
 
             case _:
-                raise Exception('Unknown breakpoint type ' + type + '.')
+                raise UnknownBreakpointTypeError(type)
 
         return lrpModule.CheckBreakpointResponse(isActivated, message if isActivated else None)
 
-    def _findExitedState(self, currentState: stateMachineModule.State, transitionSource: stateMachineModule.State, stateIdToMatch: str) ->  stateMachineModule.State | None:
+    def _findExitedState(self, currentState: stateMachineModule.State, transitionSource: stateMachineModule.State, stateIdToMatch: str) -> stateMachineModule.State | None:
         if currentState.id == stateIdToMatch:
             return currentState
 
         if currentState.id == transitionSource.id or currentState.parentState is None:
             return None
 
-        return  self._findExitedState(currentState.parentState, transitionSource, stateIdToMatch)
+        return self._findExitedState(currentState.parentState, transitionSource, stateIdToMatch)
 
     def _findReachedState(self, parentState: stateMachineModule.State, stateIdToMatch: str) -> stateMachineModule.State | None:
         if parentState.id == stateIdToMatch:

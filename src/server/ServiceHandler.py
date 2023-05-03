@@ -28,7 +28,6 @@ class ServiceHandler:
 
     @request
     def parse(self, args: dict) -> dict:
-        print("Parsing...")
         return self.mandatoryInterface.parse(args['sourceFile']).toDict()
 
     @request

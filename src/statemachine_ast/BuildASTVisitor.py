@@ -1,11 +1,12 @@
 from parser.StateMachineParser import StateMachineParser
 from parser.StateMachineVisitor import StateMachineVisitor
 
-from .StateMachine import (CompositeState, InitialState, SimpleState, State,
-                           StateMachine, ASTElement)
+from antlr4 import Token
 from server.LRP import Location
 
-from antlr4 import Token
+from .StateMachine import (CompositeState, InitialState, SimpleState, State,
+                           StateMachine)
+
 
 class StateRegistry:
     """Registry of created states.
@@ -13,7 +14,7 @@ class StateRegistry:
     Attributes:
         simpleStates (dict[str, statemachine_ls.statemachine_ast.StateMachine.SimpleState]): map of names to their simple state.
         compositeStates (dict[str, statemachine_ls.statemachine_ast.StateMachine.CompositeState]): map of names to their related composite state.
-    """    
+    """
 
     def __init__(self) -> None:
         self.simpleStates: dict[str, SimpleState] = {}
@@ -28,7 +29,7 @@ class StateRegistry:
 
 class BuildASTVisitor(StateMachineVisitor):
     """Builds an instance of `statemachine_ls.statemachine_ast.StateMachine.StateMachine` from a `statemachine_ls.parser.StateMachineParser.StateMachineParser.StatemachineContext`.
-    
+
     Attributes:
         stateRegistry (statemachine_ls.statemachine_ast.BuildASTVisitor.StateRegistry): registry of created states.
         currentParentState (statemachine_ls.statemachine_ast.StateMachine.State): parent state of the state currently being created. 
@@ -45,7 +46,7 @@ class BuildASTVisitor(StateMachineVisitor):
         stateMachine.initialState = ctx.initial_state().accept(self)
 
         for state in ctx.states:
-            self.currentParentState: State = None
+            self.currentParentState: State | None = None
             stateMachine.states.append(state.accept(self))
 
         return stateMachine
@@ -68,7 +69,8 @@ class BuildASTVisitor(StateMachineVisitor):
         for transition in ctx.transitions:
             startToken: Token = transition.TRANSITION_SYMBOL().symbol
             endToken: Token = transition.stop
-            location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1)
+            location: Location = Location(
+                startToken.line, endToken.line, startToken.column+1, endToken.column+1)
 
             if transition.target.text == 'FINAL':
                 state.createTransition(SimpleState(
@@ -92,7 +94,8 @@ class BuildASTVisitor(StateMachineVisitor):
         for transition in ctx.transitions:
             startToken: Token = transition.TRANSITION_SYMBOL().symbol
             endToken: Token = transition.stop
-            location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1)
+            location: Location = Location(
+                startToken.line, endToken.line, startToken.column+1, endToken.column+1)
 
             if transition.target.text == 'FINAL':
                 state.createTransition(SimpleState(
@@ -109,7 +112,7 @@ class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
 
     Attributes:
         stateRegistry (statemachine_ls.statemachine_ast.BuildASTVisitor.StateRegistry): registry of created states.
-    """    
+    """
 
     def visitStatemachine(self, ctx: StateMachineParser.StatemachineContext) -> StateRegistry:
         self.stateRegistry: StateRegistry = StateRegistry()
@@ -125,11 +128,11 @@ class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     def visitSimple_state(self, ctx: StateMachineParser.Simple_stateContext):
         startToken: Token = ctx.STATE().symbol
         endToken: Token = ctx.NAME().symbol
-        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
+        location: Location = Location(
+            startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
 
         if not self.stateRegistry.get(ctx.NAME().getText()) is None:
-            raise Exception('State names must be unique. Name ' +
-                            ctx.NAME().getText() + ' is duplicated.')
+            raise DuplicatedNameError(ctx.NAME().getText())
 
         self.stateRegistry.simpleStates[ctx.NAME().getText()] = SimpleState(
             ctx.NAME().getText(), location=location)
@@ -137,14 +140,24 @@ class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     def visitComposite_state(self, ctx: StateMachineParser.Composite_stateContext):
         startToken: Token = ctx.COMPOSITE_STATE().symbol
         endToken: Token = ctx.NAME().symbol
-        location: Location = Location(startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
+        location: Location = Location(
+            startToken.line, endToken.line, startToken.column+1, endToken.column+1+(endToken.stop-endToken.start))
 
         if not self.stateRegistry.get(ctx.NAME().getText()) is None:
-            raise Exception('State names must be unique. Name ' +
-                            ctx.NAME().getText() + ' is duplicated.')
+            raise DuplicatedNameError(ctx.NAME().getText())
 
         self.stateRegistry.compositeStates[ctx.NAME().getText()] = CompositeState(
             ctx.NAME().getText(), location)
 
         for state in ctx.states:
             state.accept(self)
+
+
+class DuplicatedNameError(ValueError):
+
+    def __init__(self, duplicatedName: str, *args: object) -> None:
+        super().__init__(*args)
+        self.duplicatedName = duplicatedName
+
+    def __str__(self) -> str:
+        return f'State names must be unique. Name \'{self.duplicatedName}\' is duplicated.'

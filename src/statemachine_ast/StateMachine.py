@@ -56,7 +56,8 @@ class State(ASTElement):
             transition.target.incomingTransitions.append(transition)
 
     def createTransition(self, target: State, input: str | None = None, output: str | None = None, location: Location | None = None) -> None:
-        transition: Transition = Transition(self, target, input, output, location)
+        transition: Transition = Transition(
+            self, target, input, output, location)
         self.outgoingTransitions.append(transition)
         target.incomingTransitions.append(transition)
 
@@ -122,13 +123,13 @@ class CompositeState(State):
 
     def getNestedInitialState(self) -> State:
         if self.initialState is None:
-            raise Exception('No initial state.')
+            raise ValueError('No initial state.')
 
         return self.initialState.getNestedInitialState()
 
     def toDict(self) -> dict:
         if self.initialState is None:
-            raise Exception('No initial state.')
+            raise ValueError('No initial state.')
 
         return super().constructDict(
             {},

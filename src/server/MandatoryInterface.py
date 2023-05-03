@@ -1,11 +1,13 @@
 from parser.StateMachineLexer import StateMachineLexer
 from parser.StateMachineParser import StateMachineParser
 
-from antlr4 import *
+from antlr4 import CommonTokenStream, FileStream
 from statemachine_ast.ASTRegistry import ASTRegistry
 from statemachine_ast.BuildASTVisitor import BuildASTVisitor
 from statemachine_ast.StateMachine import StateMachine
+
 from server.LRP import ParseResponse
+
 
 class MandatoryInterface:
     """Exposes the mandatory services for any language server.
@@ -24,8 +26,8 @@ class MandatoryInterface:
             file (str): URI of the file to parse.
         """
 
-        input = FileStream(file)
-        lexer = StateMachineLexer(input)
+        textInput = FileStream(file)
+        lexer = StateMachineLexer(textInput)
         stream = CommonTokenStream(lexer)
         parser = StateMachineParser(stream)
         tree = parser.statemachine()
