@@ -14,39 +14,39 @@ class ServiceHandler:
     These services are called by the JSON-RPC handler.
 
     Attributes:
-        registry (statemachine_ls.statemachine_ast.ASTRegistry.ASTRegistry): Registry of all ASTs.
-        mandatoryInterface (statemachine_ls.server.MandatoryInterface.MandatoryInterface): Interface for mandatory services.
-        semanticsInterface (statemachine_ls.server.SemanticsInterface.SemanticsInterface): Interface for execution semantics services.
+        registry (ASTRegistry): registry of all ASTs.
+        mandatory_interface (MandatoryInterface): interface for mandatory services.
+        semantics_interface (SemanticsInterface): interface for execution semantics services.
     """
 
     def __init__(self) -> None:
         self.registry: ASTRegistry = ASTRegistry()
-        self.mandatoryInterface: MandatoryInterface = MandatoryInterface(
+        self.mandatory_interface: MandatoryInterface = MandatoryInterface(
             self.registry)
-        self.semanticsInterface: SemanticsInterface = SemanticsInterface(
+        self.semantics_interface: SemanticsInterface = SemanticsInterface(
             self.registry)
 
     @request
     def parse(self, args: dict) -> dict:
-        return self.mandatoryInterface.parse(args['sourceFile']).toDict()
+        return self.mandatory_interface.parse(args['sourceFile']).to_dict()
 
     @request
     def initExecution(self, args: dict) -> dict:
-        return self.semanticsInterface.initExecution(
-            InitArguments(args['sourceFile'], args['inputs'])).toDict()
+        return self.semantics_interface.init_execution(
+            InitArguments(args['sourceFile'], args['inputs'])).to_dict()
 
     @request
     def getBreakpointTypes(self) -> dict:
-        return self.semanticsInterface.getBreakpointTypes().toDict()
+        return self.semantics_interface.get_breakpoint_types().to_dict()
 
     @request
     def nextStep(self, args: dict) -> dict:
-        return self.semanticsInterface.nextStep(args['sourceFile']).toDict()
+        return self.semantics_interface.next_step(args['sourceFile']).to_dict()
 
     @request
     def getRuntimeState(self, args: dict) -> dict:
-        return self.semanticsInterface.getRuntimeState(args['sourceFile']).toDict()
+        return self.semantics_interface.get_runtime_state(args['sourceFile']).to_dict()
 
     @request
     def checkBreakpoint(self, args: dict) -> dict:
-        return self.semanticsInterface.checkBreakpoint(CheckBreakpointArgs(args['sourceFile'], args['typeId'], args['elementId'])).toDict()
+        return self.semantics_interface.check_breakpoint(CheckBreakpointArgs(args['sourceFile'], args['typeId'], args['elementId'])).to_dict()

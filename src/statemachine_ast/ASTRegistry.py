@@ -5,11 +5,11 @@ class ASTRegistry:
     """Stores the AST produced from each source file.
 
     Attributes:
-        loadedSources (dict[str, statemachine_ls.statemachine_ast.StateMachine.StateMachine]): dictionary of source files mapped to their parsed state machine.
+        loaded_sources (dict[str, StateMachine]): dictionary of source files mapped to their parsed state machine.
     """
 
     def __init__(self) -> None:
-        self.loadedSources: dict[str, StateMachine] = {}
+        self.loaded_sources: dict[str, StateMachine] = {}
 
-    def setAST(self, sourceFile: str, stateMachine: StateMachine) -> None:
-        self.loadedSources[sourceFile] = stateMachine
+    def set_ast(self, source_file: str, state_machine: StateMachine) -> None:
+        self.loaded_sources[source_file] = state_machine

@@ -22,8 +22,8 @@ if __name__ == '__main__':
 
     # Start JSON-RPC server
     print("Server running at port " + str(args.port) + "...")
-    serviceHandler: ServiceHandler = ServiceHandler()
+    service_handler: ServiceHandler = ServiceHandler()
     while True:
         s, _ = ss.accept()
-        JSONRpc(s, serviceHandler, framing_cls=bsonrpc.JSONFramingNone,
+        JSONRpc(s, service_handler, framing_cls=bsonrpc.JSONFramingNone,
                 threading_model=ThreadingModel.GEVENT, concurrent_request_handling=ThreadingModel.GEVENT)
