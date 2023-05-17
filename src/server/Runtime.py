@@ -36,7 +36,9 @@ class Runtime:
 
         self.current_state = self.next_transition.target.get_nested_initial_state()
         self.next_consumed_input_index += 1
-        self.outputs.append(self.next_transition.output)
+        if self.next_transition.output is not None:
+            self.outputs.append(self.next_transition.output)
+
         self.next_transition = self._find_next_transition()
 
         return self.next_transition
@@ -73,14 +75,14 @@ class Runtime:
                 state: stateMachineModule.State | None = self._find_reached_state(
                     self.next_transition.target, element_id)
                 is_activated = state is not None
-                if is_activated:
+                if state is not None:
                     message = f'State {state.name} is about to be reached.'
 
             case 'stateMachine.stateExited':
                 state: stateMachineModule.State | None = self._find_exited_state(
                     self.current_state, self.next_transition.source, element_id)
                 is_activated = state is not None
-                if is_activated:
+                if state is not None:
                     message = f'State {state.name} is about to be exited.'
 
             case _:

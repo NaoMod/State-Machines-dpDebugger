@@ -20,9 +20,9 @@ class StateRegistry:
         self.simple_states: dict[str, SimpleState] = {}
         self.composite_states: dict[str, CompositeState] = {}
 
-    def get(self, name: str) -> State:
+    def get(self, name: str) -> State | None:
         if self.simple_states.get(name) is not None:
-            return self.simple_states.get(name)
+            return self.simple_states[name]
 
         return self.composite_states.get(name)
 
@@ -59,36 +59,30 @@ class BuildASTVisitor(StateMachineVisitor):
 
     # Visit a parse tree produced by StateMachineParser#composite_state.
     def visitComposite_state(self, ctx: StateMachineParser.Composite_stateContext) -> CompositeState:
-        state: CompositeState = self.state_registry.composite_states.get(
-            ctx.NAME().getText())
+        state: CompositeState = self.state_registry.composite_states[ctx.NAME(
+        ).getText()]
 
         state.initial_state = InitialState(
             self.state_registry.get(ctx.initial_state().target.text))
-        state.parent_state = self.current_parent_state
 
-        for transition in ctx.transitions:
-            start_token: Token = transition.TRANSITION_SYMBOL().symbol
-            end_token: Token = transition.stop
-            location: Location = Location(
-                start_token.line, end_token.line, start_token.column+1, end_token.column+1)
-
-            if transition.target.text == 'FINAL':
-                state.create_transition(SimpleState(
-                    parent_state=self.current_parent_state, is_final=True), transition.input_.text.strip("'"), transition.output.text.strip("'"), location)
-            else:
-                state.create_transition(
-                    self.state_registry.get(transition.target.text), transition.input_.text.strip("'"), transition.output.text.strip("'"), location)
+        self._create_transitions(state, ctx)
 
         for contained_state in ctx.states:
-            self.current_parent_state: State = state
+            self.current_parent_state = state
             state.states.append(contained_state.accept(self))
 
         return state
 
     # Visit a parse tree produced by StateMachineParser#simple_state.
     def visitSimple_state(self, ctx: StateMachineParser.Simple_stateContext) -> SimpleState:
-        state: SimpleState = self.state_registry.simple_states.get(
-            ctx.NAME().getText())
+        state: SimpleState = self.state_registry.simple_states[ctx.NAME(
+        ).getText()]
+
+        self._create_transitions(state, ctx)
+
+        return state
+
+    def _create_transitions(self, state: State, ctx: StateMachineParser.Composite_stateContext | StateMachineParser.Simple_stateContext) -> None:
         state.parent_state = self.current_parent_state
 
         for transition in ctx.transitions:
@@ -103,8 +97,6 @@ class BuildASTVisitor(StateMachineVisitor):
             else:
                 state.create_transition(
                     self.state_registry.get(transition.target.text), transition.input_.text.strip("'"), transition.output.text.strip("'"), location)
-
-        return state
 
 
 class BasicBuildEmptyStatesVisitor(StateMachineVisitor):

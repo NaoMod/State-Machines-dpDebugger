@@ -119,13 +119,13 @@ class CompositeState(State):
 
     def __init__(self,  name: str, location: Location | None = None):
         super().__init__(name, None, False, location)
-        self.initial_state = None
+        self.initial_state: InitialState | None = None
 
     def get_nested_initial_state(self) -> State:
         if self.initial_state is None:
             raise ValueError('No initial state.')
 
-        return self.initial_state.getNestedInitialState()
+        return self.initial_state.get_nested_initial_state()
 
     def to_dict(self) -> dict:
         if self.initial_state is None:
@@ -133,7 +133,7 @@ class CompositeState(State):
 
         return super().construct_dict(
             {},
-            {'states': list(map(lambda state: state.toDict(), self.states))},
+            {'states': list(map(lambda state: state.to_dict(), self.states))},
             {'initialState': self.initial_state.target.id}
         )
 
