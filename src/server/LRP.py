@@ -228,7 +228,7 @@ class RuntimeState(ModelElement):
 
     Attributes:
         inputs (list[str]): ordered symbols given as inputs for the execution.
-        next_consumed_input_index (int): index of the next input to consume.
+        next_consumed_input_index (int | None): index of the next input to consume. None if there is no input left.
         current_state (State): current state in the state machine.
         outputs (list[str]): outputs created so far during the execution.
     """
@@ -236,11 +236,23 @@ class RuntimeState(ModelElement):
     def __init__(self, runtime: Runtime) -> None:
         super().__init__('stateMachine.runtimeState')
         self.inputs = runtime.inputs
-        self.next_consumed_input_index = runtime.next_consumed_input_index
+        self.next_consumed_input_index = None if runtime.next_transition is None else runtime.next_consumed_input_index
         self.current_state = runtime.current_state
         self.outputs = runtime.outputs
 
     def to_dict(self) -> dict:
+        if self.current_state.is_final:
+            return super().construct_dict(
+                {
+                    'inputs': self.inputs,
+                    'nextConsumedInputIndex': self.next_consumed_input_index,
+                    'outputs': self.outputs,
+                    'currentState': 'FINAL'
+                },
+                {},
+                {}
+            )
+
         return super().construct_dict(
             {
                 'inputs': self.inputs,
