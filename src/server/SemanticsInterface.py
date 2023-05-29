@@ -93,7 +93,6 @@ class SemanticsInterface:
         """
 
         self._check_runtime_exists(source_file)
-        runtime: Runtime = self.runtimes[source_file]
 
         return GetRuntimeStateResponse(RuntimeState(self.runtimes[source_file]))
 
