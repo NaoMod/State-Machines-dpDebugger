@@ -6,10 +6,14 @@ from enum import Enum
 from typing import Any
 
 import statemachine_ast.StateMachine as stateMachineModule
-
 from server.Runtime import Runtime
 
 """---------------- Base protocol ----------------"""
+
+class Arguments:
+
+    def __init__(self, sourceFile: str) -> None:
+        self.sourceFile = sourceFile
 
 
 class ModelElement:
@@ -92,20 +96,18 @@ class GetBreakpointTypesResponse:
         }
 
 
+class StepArguments(Arguments):
+
+    def __init__(self, sourceFile: str, threadId: int | None = None, stepId: str | None = None) -> None:
+        super().__init__(sourceFile)
+        self.threadId = threadId
+        self.stepId = stepId
+
+
 class StepResponse:
 
     def __init__(self, isExecutionDone: bool = False) -> None:
         self.isExecutionDone = isExecutionDone
-
-    def to_dict(self) -> dict:
-        return self.__dict__
-
-
-class Step:
-
-    def __init__(self, type: str, info: dict) -> None:
-        self.type = type
-        self.info = info
 
     def to_dict(self) -> dict:
         return self.__dict__
@@ -174,12 +176,13 @@ class GetRuntimeStateResponse:
         }
 
 
-class CheckBreakpointArgs:
+class CheckBreakpointArguments(Arguments):
 
-    def __init__(self, sourceFile: str, typeId: str, elementId: str) -> None:
-        self.sourceFile = sourceFile
+    def __init__(self, sourceFile: str, typeId: str, elementId: str, stepId: str | None = None) -> None:
+        super().__init__(sourceFile)
         self.typeId = typeId
         self.elementId = elementId
+        self.stepId = stepId
 
 
 class CheckBreakpointResponse:
@@ -195,6 +198,111 @@ class CheckBreakpointResponse:
 
         if self.message is not None:
             res['message'] = self.message
+
+        return res
+    
+
+class InitializeResponse:
+
+    def __init__(self, capabilities: LanguageRuntimeCapabilities) -> None:
+        self.capabilities = capabilities
+
+    def to_dict(self) -> dict:
+        return {
+            'capabilities': self.capabilities.to_dict()
+        }
+
+
+class LanguageRuntimeCapabilities:
+
+    def __init__(self, supportsThreads: bool, supportsStackTrace: bool, supportsScopes: bool) -> None:
+        self.supportsThreads = supportsThreads
+        self.supportsStackTrace = supportsStackTrace
+        self.supportsScopes = supportsScopes
+
+    def to_dict(self) -> dict:
+        return self.__dict__
+
+
+class GetSteppingModesResponse:
+
+    def __init__(self, steppingModes: list[SteppingMode]) -> None:
+        self.steppingModes = steppingModes
+
+    def to_dict(self) -> dict:
+        return {
+            'steppingModes': list(map(lambda mode: mode.to_dict(), self.steppingModes))
+        }
+
+
+class SteppingMode:
+
+    def __init__(self, id: str, name: str, description: str) -> None:
+        self.id = id
+        self.name = name
+        self.description = description
+
+    def to_dict(self) -> dict:
+        return self.__dict__
+    
+
+class GetAvailableStepsArguments(Arguments):
+
+    def __init__(self, sourceFile: str, steppingModeId: str, compositeStepId: str | None = None) -> None:
+        super().__init__(sourceFile)
+        self.steppingModeId = steppingModeId
+        self.compositeStepId= compositeStepId
+
+
+class GetAvailableStepsResponse:
+
+    def __init__(self, availableSteps: list[Step]) -> None:
+        self.availableSteps = availableSteps
+
+    def to_dict(self) -> dict:
+        return {
+            'availableSteps': list(map(lambda step: step.to_dict(), self.availableSteps))
+        }
+
+    
+class Step:
+
+    def __init__(self, id: str, name: str, isComposite: bool, description: str | None = None) -> None:
+        self.id = id
+        self.name = name
+        self.isComposite = isComposite
+        self.description = description
+
+    def to_dict(self) -> dict:
+        res: dict[str, Any] = {
+            'id': self.id,
+            'name': self.name,
+            'isComposite': self.isComposite
+        }
+
+        if self.description is not None:
+            res['description'] = self.description
+
+        return res
+    
+
+class GetStepLocationArguments(Arguments):
+
+    def __init__(self, sourceFile: str, stepId: str) -> None:
+        super().__init__(sourceFile)
+        self.stepId = stepId
+
+    
+class GetStepLocationResponse:
+
+    def __init__(self, location: Location | None = None) -> None:
+        self.location = location
+
+    def to_dict(self) -> dict:
+        res: dict[str, Any] = { }
+
+        if self.location is not None:
+            res['location'] = self.location
 
         return res
 
@@ -215,13 +323,6 @@ class InitArguments:
         self.inputs: list[str] = inputs
 
 
-class TransitionStep(Step):
-
-    def __init__(self, next_transition: stateMachineModule.Transition) -> None:
-        super().__init__('stateMachine.transition',
-                         {'transition': next_transition.id})
-
-
 class RuntimeState(ModelElement):
     """Represents the current state of a runtime.
     Contains the information passed to the debugger.
@@ -236,7 +337,7 @@ class RuntimeState(ModelElement):
     def __init__(self, runtime: Runtime) -> None:
         super().__init__('stateMachine.runtimeState')
         self.inputs = runtime.inputs
-        self.next_consumed_input_index = None if runtime.next_transition is None else runtime.next_consumed_input_index
+        self.next_consumed_input_index = None if runtime.available_transitions is None else runtime.next_consumed_input_index
         self.current_state = runtime.current_state
         self.outputs = runtime.outputs
 

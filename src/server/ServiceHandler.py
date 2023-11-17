@@ -3,7 +3,7 @@ from pathlib import Path
 from bsonrpc import request, service_class
 from statemachine_ast.ASTRegistry import ASTRegistry
 
-from .LRP import CheckBreakpointArgs
+from .LRP import CheckBreakpointArguments, GetAvailableStepsArguments, GetStepLocationArguments, StepArguments
 from .MandatoryInterface import MandatoryInterface
 from .SemanticsInterface import InitArguments, SemanticsInterface
 
@@ -25,6 +25,10 @@ class ServiceHandler:
             self.registry)
         self.semantics_interface: SemanticsInterface = SemanticsInterface(
             self.registry)
+        
+    @request
+    def initialize(self) -> dict:
+        return self.mandatory_interface.initialize().to_dict()
 
     @request
     def parse(self, args: dict) -> dict:
@@ -40,8 +44,8 @@ class ServiceHandler:
         return self.semantics_interface.get_breakpoint_types().to_dict()
 
     @request
-    def nextStep(self, args: dict) -> dict:
-        return self.semantics_interface.next_step(args['sourceFile']).to_dict()
+    def executeStep(self, args: dict) -> dict:
+        return self.semantics_interface.execute_step(StepArguments(args['sourceFile'], args.get('threadId'), args.get('stepId'))).to_dict()
 
     @request
     def getRuntimeState(self, args: dict) -> dict:
@@ -49,4 +53,16 @@ class ServiceHandler:
 
     @request
     def checkBreakpoint(self, args: dict) -> dict:
-        return self.semantics_interface.check_breakpoint(CheckBreakpointArgs(args['sourceFile'], args['typeId'], args['elementId'])).to_dict()
+        return self.semantics_interface.check_breakpoint(CheckBreakpointArguments(args['sourceFile'], args['typeId'], args['elementId'], args.get('stepId'))).to_dict()
+    
+    @request
+    def getSteppingModes(self) -> dict:
+        return self.semantics_interface.get_stepping_modes().to_dict()
+
+    @request
+    def getAvailableSteps(self, args: dict) -> dict:
+        return self.semantics_interface.get_available_steps(GetAvailableStepsArguments(args['sourceFile'], args['steppingModeId'], args.get('compositeStepId'))).to_dict()
+
+    @request
+    def getStepLocation(self, args: dict) -> dict:
+        return self.semantics_interface.get_step_location(GetStepLocationArguments(args['sourceFile'], args['stepId'])).to_dict()
