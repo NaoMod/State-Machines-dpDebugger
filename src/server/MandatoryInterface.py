@@ -2,11 +2,10 @@ from parser.StateMachineLexer import StateMachineLexer
 from parser.StateMachineParser import StateMachineParser
 
 from antlr4 import CommonTokenStream, FileStream
+from server.LRP import InitializeResponse, LanguageRuntimeCapabilities, ParseResponse
 from statemachine_ast.ASTRegistry import ASTRegistry
 from statemachine_ast.BuildASTVisitor import BuildASTVisitor
 from statemachine_ast.StateMachine import StateMachine
-
-from server.LRP import ParseResponse, InitializeResponse, LanguageRuntimeCapabilities
 
 
 class MandatoryInterface:
@@ -20,7 +19,9 @@ class MandatoryInterface:
         self.registry: ASTRegistry = registry
 
     def initialize(self) -> InitializeResponse:
-        capabilities: LanguageRuntimeCapabilities = LanguageRuntimeCapabilities(False, False, False)
+        capabilities: LanguageRuntimeCapabilities = LanguageRuntimeCapabilities(
+            False, False, False
+        )
         return InitializeResponse(capabilities)
 
     def parse(self, file: str) -> ParseResponse:

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import server.LRP as lrpModule
 import statemachine_ast.StateMachine as stateMachineModule
-from server.ServerExceptions import (ExecutionAlreadyDoneError,
-                                     UnknownBreakpointTypeError)
+from server.ServerExceptions import UnknownBreakpointTypeError
 
 
 class Runtime:
@@ -18,19 +17,27 @@ class Runtime:
         available_transitions (list[Transition]): list of transitions that can be fired.
     """
 
-    def __init__(self, state_machine: stateMachineModule.StateMachine, inputs: list[str]) -> None:
+    def __init__(
+        self, state_machine: stateMachineModule.StateMachine, inputs: list[str]
+    ) -> None:
         self.state_machine: stateMachineModule.StateMachine = state_machine
         if state_machine.initial_state is None:
-            raise ValueError('No initial state.')
+            raise ValueError("No initial state.")
 
         self.inputs: list[str] = inputs
         self.outputs: list[str] = []
         self.next_consumed_input_index: int = 0
-        self.current_state: stateMachineModule.State = state_machine.initial_state.get_nested_initial_state()
+        self.current_state: stateMachineModule.State = (
+            state_machine.initial_state.get_nested_initial_state()
+        )
         self.available_transitions: list[stateMachineModule.Transition] | None = None
 
     def execute_step(self, stepId: str | None = None) -> None:
-        next_transition: stateMachineModule.Transition | None = self.find_next_transition() if stepId is None else self.available_transitions[stepId]
+        next_transition: stateMachineModule.Transition | None = (
+            self.find_next_transition()
+            if stepId is None
+            else self.available_transitions[stepId]
+        )
         self.current_state = next_transition.target.get_nested_initial_state()
         self.next_consumed_input_index += 1
         if next_transition.output is not None:
@@ -53,7 +60,7 @@ class Runtime:
             state = state.parent_state
 
         return available_transitions
-    
+
     def find_next_transition(self) -> stateMachineModule.Transition | None:
         if self.next_consumed_input_index >= len(self.inputs):
             return None
@@ -68,55 +75,79 @@ class Runtime:
             state = state.parent_state
 
         return None
-    
-    def check_breakpoint(self, type: str, element_id: str, stepId: str | None = None) -> lrpModule.CheckBreakpointResponse:
-        next_transition: stateMachineModule.Transition | None = self.find_next_transition() if stepId is None else self.available_transitions[stepId]
+
+    def check_breakpoint(
+        self, type: str, element_id: str, stepId: str | None = None
+    ) -> lrpModule.CheckBreakpointResponse:
+        next_transition: stateMachineModule.Transition | None = (
+            self.find_next_transition()
+            if stepId is None
+            else self.available_transitions[stepId]
+        )
 
         if next_transition is None:
             return lrpModule.CheckBreakpointResponse(False)
 
         is_activated = False
-        message: str = ''
+        message: str = ""
 
         match type:
-            case 'stateMachine.transitionFired':
+            case "stateMachine.transitionFired":
                 is_activated = next_transition.id == element_id
                 if is_activated:
-                    message = f'Transition {next_transition.source.name} -> {next_transition.target.name} is about to be fired.'
+                    message = f"Transition {next_transition.source.name} -> {next_transition.target.name} is about to be fired."
 
-            case 'stateMachine.stateReached':
+            case "stateMachine.stateReached":
                 state: stateMachineModule.State | None = self._find_reached_state(
-                    next_transition.target, element_id)
+                    next_transition.target, element_id
+                )
                 is_activated = state is not None
                 if state is not None:
-                    message = f'State {state.name} is about to be reached.'
+                    message = f"State {state.name} is about to be reached."
 
-            case 'stateMachine.stateExited':
+            case "stateMachine.stateExited":
                 state: stateMachineModule.State | None = self._find_exited_state(
-                    self.current_state, next_transition.source, element_id)
+                    self.current_state, next_transition.source, element_id
+                )
                 is_activated = state is not None
                 if state is not None:
-                    message = f'State {state.name} is about to be exited.'
+                    message = f"State {state.name} is about to be exited."
 
             case _:
                 raise UnknownBreakpointTypeError(type)
 
-        return lrpModule.CheckBreakpointResponse(is_activated, message if is_activated else None)
+        return lrpModule.CheckBreakpointResponse(
+            is_activated, message if is_activated else None
+        )
 
-    def _find_exited_state(self, current_state: stateMachineModule.State, transition_source: stateMachineModule.State, state_id_to_match: str) -> stateMachineModule.State | None:
+    def _find_exited_state(
+        self,
+        current_state: stateMachineModule.State,
+        transition_source: stateMachineModule.State,
+        state_id_to_match: str,
+    ) -> stateMachineModule.State | None:
         if current_state.id == state_id_to_match:
             return current_state
 
-        if current_state.id == transition_source.id or current_state.parent_state is None:
+        if (
+            current_state.id == transition_source.id
+            or current_state.parent_state is None
+        ):
             return None
 
-        return self._find_exited_state(current_state.parent_state, transition_source, state_id_to_match)
+        return self._find_exited_state(
+            current_state.parent_state, transition_source, state_id_to_match
+        )
 
-    def _find_reached_state(self, parent_state: stateMachineModule.State, state_id_to_match: str) -> stateMachineModule.State | None:
+    def _find_reached_state(
+        self, parent_state: stateMachineModule.State, state_id_to_match: str
+    ) -> stateMachineModule.State | None:
         if parent_state.id == state_id_to_match:
             return parent_state
 
-        current_state: stateMachineModule.State | None = parent_state.get_nested_initial_state()
+        current_state: stateMachineModule.State | None = (
+            parent_state.get_nested_initial_state()
+        )
 
         while current_state is not parent_state and current_state is not None:
             if current_state.id == state_id_to_match:

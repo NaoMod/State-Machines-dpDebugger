@@ -1,41 +1,63 @@
 from __future__ import annotations
 
 import statemachine_ast.ASTRegistry as astRegistryModule
-
-from server.LRP import (BreakpointParameter, BreakpointType,
-                        CheckBreakpointArguments, CheckBreakpointResponse,
-                        GetBreakpointTypesResponse, GetRuntimeStateResponse,
-                        InitArguments, InitResponse, RuntimeState,
-                        StepResponse, SteppingMode, GetSteppingModesResponse,
-                        GetAvailableStepsArguments, GetAvailableStepsResponse,
-                        GetStepLocationArguments, GetStepLocationResponse, Location, StepArguments, Step)
+from server.LRP import (
+    BreakpointParameter,
+    BreakpointType,
+    CheckBreakpointArguments,
+    CheckBreakpointResponse,
+    GetAvailableStepsArguments,
+    GetAvailableStepsResponse,
+    GetBreakpointTypesResponse,
+    GetRuntimeStateResponse,
+    GetStepLocationArguments,
+    GetStepLocationResponse,
+    GetSteppingModesResponse,
+    InitArguments,
+    InitResponse,
+    Location,
+    RuntimeState,
+    Step,
+    StepArguments,
+    SteppingMode,
+    StepResponse,
+)
 from server.Runtime import Runtime
 
 breakpoints: list[BreakpointType] = [
-    BreakpointType('stateMachine.stateReached',
-                   'State Reached',
-                   [BreakpointParameter(
-                       'targetElementType', objectType='stateMachine.state')],
-                   'Breaks when a specific state is about to be reached.'),
-
-    BreakpointType('stateMachine.stateExited',
-                   'State Exited',
-                   [BreakpointParameter(
-                       'targetElementType', objectType='stateMachine.state')],
-                   description='Breaks when a specific state is about to be exited.'),
-
-    BreakpointType('stateMachine.transitionFired',
-                   'Transition Fired',
-                   [BreakpointParameter(
-                       'targetElementType', objectType='stateMachine.transition')],
-                   'Breaks when a specific transition is about to be fired.')
+    BreakpointType(
+        "stateMachine.stateReached",
+        "State Reached",
+        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
+        "Breaks when a specific state is about to be reached.",
+    ),
+    BreakpointType(
+        "stateMachine.stateExited",
+        "State Exited",
+        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
+        description="Breaks when a specific state is about to be exited.",
+    ),
+    BreakpointType(
+        "stateMachine.transitionFired",
+        "Transition Fired",
+        [
+            BreakpointParameter(
+                "targetElementType", objectType="stateMachine.transition"
+            )
+        ],
+        "Breaks when a specific transition is about to be fired.",
+    ),
 ]
 
 steppingModes: list[SteppingMode] = [
-    SteppingMode('stateMachine.atomicStep', 'Atomic Step', ''),
-    SteppingMode('stateMachine.scopedTransition', 'Scoped Transition Step',
-                 'Fires the next transition at a given depth.')
+    SteppingMode("stateMachine.atomicStep", "Atomic Step", ""),
+    SteppingMode(
+        "stateMachine.scopedTransition",
+        "Scoped Transition Step",
+        "Fires the next transition at a given depth.",
+    ),
 ]
+
 
 class SemanticsInterface:
     """Exposes the services related to execution semantics.
@@ -61,7 +83,8 @@ class SemanticsInterface:
         """
 
         self.runtimes[args.source_file] = Runtime(
-            self.registry.loaded_sources[args.source_file], args.inputs)
+            self.registry.loaded_sources[args.source_file], args.inputs
+        )
 
         next_transition = self.runtimes[args.source_file].find_next_transition()
 
@@ -83,7 +106,9 @@ class SemanticsInterface:
         self._check_runtime_exists(args.sourceFile)
         self.runtimes[args.sourceFile].execute_step(args.stepId)
 
-        return StepResponse(self.runtimes[args.sourceFile].find_next_transition() is None)
+        return StepResponse(
+            self.runtimes[args.sourceFile].find_next_transition() is None
+        )
 
     def get_runtime_state(self, source_file: str) -> GetRuntimeStateResponse:
         """Returns the current runtime state for a given source file.
@@ -102,7 +127,9 @@ class SemanticsInterface:
 
         return GetRuntimeStateResponse(RuntimeState(self.runtimes[source_file]))
 
-    def check_breakpoint(self, args: CheckBreakpointArguments) -> CheckBreakpointResponse:
+    def check_breakpoint(
+        self, args: CheckBreakpointArguments
+    ) -> CheckBreakpointResponse:
         """Checks whether a breakpoint is activated.
 
         Args:
@@ -113,12 +140,16 @@ class SemanticsInterface:
         """
         self._check_runtime_exists(args.sourceFile)
 
-        return self.runtimes[args.sourceFile].check_breakpoint(args.typeId, args.elementId)
-    
+        return self.runtimes[args.sourceFile].check_breakpoint(
+            args.typeId, args.elementId
+        )
+
     def get_stepping_modes(self) -> GetSteppingModesResponse:
         return GetSteppingModesResponse(steppingModes)
-    
-    def get_available_steps(self, args: GetAvailableStepsArguments) -> GetAvailableStepsResponse:
+
+    def get_available_steps(
+        self, args: GetAvailableStepsArguments
+    ) -> GetAvailableStepsResponse:
         self._check_runtime_exists(args.sourceFile)
 
         runtime = self.runtimes[args.sourceFile]
@@ -127,13 +158,27 @@ class SemanticsInterface:
 
         steps: list[Step] = []
         for i in range(len(available_steps)):
-            steps.append(Step(i, f'{available_steps[i].source.name} -> {available_steps[i].target.name}', False))
+            steps.append(
+                Step(
+                    i,
+                    f"{available_steps[i].source.name} -> {available_steps[i].target.name}",
+                    False,
+                )
+            )
 
         return GetAvailableStepsResponse(steps)
 
-    def get_step_location(self, args: GetStepLocationArguments) -> GetStepLocationResponse:
+    def get_step_location(
+        self, args: GetStepLocationArguments
+    ) -> GetStepLocationResponse:
         self._check_runtime_exists(args.sourceFile)
-        location: Location | None = None if self.runtimes[args.sourceFile].available_transitions is None else self.runtimes[args.sourceFile].available_transitions[args.stepId].location.to_dict()
+        location: Location | None = (
+            None
+            if self.runtimes[args.sourceFile].available_transitions is None
+            else self.runtimes[args.sourceFile]
+            .available_transitions[args.stepId]
+            .location.to_dict()
+        )
 
         return GetStepLocationResponse(location)
 
@@ -148,4 +193,4 @@ class SemanticsInterface:
         """
 
         if self.runtimes[source_file] is None:
-            raise ValueError(f'No runtime for source file {source_file}.')
+            raise ValueError(f"No runtime for source file {source_file}.")

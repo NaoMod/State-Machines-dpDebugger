@@ -11,11 +11,11 @@ class UnknownBreakpointTypeError(ValueError):
         self.breakpoint_type_id = breakpoint_type_id
 
     def __str__(self) -> str:
-        return f'Unknown breakpoint type {self.breakpoint_type_id}.'
+        return f"Unknown breakpoint type {self.breakpoint_type_id}."
 
 
 class ExecutionAlreadyDoneError(Exception):
-    """Error raised when an LRP request is called on a source file 
+    """Error raised when an LRP request is called on a source file
     whose execution is already done.
     """
 
@@ -23,4 +23,4 @@ class ExecutionAlreadyDoneError(Exception):
         super().__init__(*args)
 
     def __str__(self) -> str:
-        return f'Execution already done.'
+        return "Execution already done."
