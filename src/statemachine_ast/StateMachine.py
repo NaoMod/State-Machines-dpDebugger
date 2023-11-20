@@ -59,24 +59,6 @@ class State(ASTElement):
         self.incoming_transitions: list[Transition] = []
         self.states = []
 
-    def add_transitions(self, transitions: list[Transition]) -> None:
-        for transition in transitions:
-            self.outgoing_transitions.append(transition)
-
-        for transition in transitions:
-            transition.target.incoming_transitions.append(transition)
-
-    def create_transition(
-        self,
-        target: State,
-        input: str | None = None,
-        output: str | None = None,
-        location: Location | None = None,
-    ) -> None:
-        transition: Transition = Transition(self, target, input, output, location)
-        self.outgoing_transitions.append(transition)
-        target.incoming_transitions.append(transition)
-
     @abstractmethod
     def get_nested_initial_state(self) -> State:
         return self
@@ -194,6 +176,7 @@ class Transition(ASTElement):
         target: State,
         input: str | None = None,
         output: str | None = None,
+        assignments: list[Assignment] | None = None,
         location: Location | None = None,
     ):
         super().__init__("stateMachine.transition", location=location)
@@ -201,6 +184,7 @@ class Transition(ASTElement):
         self.target = target
         self.input = input
         self.output = output
+        self.assignments = assignments
 
     def to_dict(self) -> dict:
         refs: dict = {}
@@ -208,6 +192,27 @@ class Transition(ASTElement):
         if not self.target.is_final:
             refs["target"] = self.target.id
 
+        attributes = {"input": self.input, "ouptut": self.output}
+
+        if self.assignments is not None:
+            attributes["assignments"] = list(
+                map(lambda a: a.to_dict(), self.assignments)
+            )
+
         return super().construct_dict(
-            {"input": self.input, "ouptut": self.output}, {}, {**refs}
+            {**attributes},
+            {},
+            {**refs},
+        )
+
+
+class Assignment(ASTElement):
+    def __init__(self, variable: str, value: str):
+        super().__init__("stateMachine.assignment")
+        self.variable = variable
+        self.value = value
+
+    def to_dict(self) -> dict:
+        return super().construct_dict(
+            {"variable": self.variable, "value": self.value}, {}, {}
         )

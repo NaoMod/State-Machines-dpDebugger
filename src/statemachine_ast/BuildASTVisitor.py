@@ -4,7 +4,14 @@ from parser.StateMachineVisitor import StateMachineVisitor
 from antlr4 import Token
 from server.LRP import Location
 
-from .StateMachine import CompositeState, InitialState, SimpleState, State, StateMachine
+from .StateMachine import (
+    CompositeState,
+    InitialState,
+    SimpleState,
+    State,
+    StateMachine,
+    Transition,
+)
 
 
 class StateRegistry:
@@ -46,7 +53,7 @@ class BuildASTVisitor(StateMachineVisitor):
         state_machine.initial_state = ctx.initial_state().accept(self)
 
         for state in ctx.states:
-            self.current_parent_state: State | None = None
+            self.current_state_parent: State | None = None
             state_machine.states.append(state.accept(self))
 
         return state_machine
@@ -72,7 +79,7 @@ class BuildASTVisitor(StateMachineVisitor):
         self._create_transitions(state, ctx)
 
         for contained_state in ctx.states:
-            self.current_parent_state = state
+            self.current_state_parent = state
             state.states.append(contained_state.accept(self))
 
         return state
@@ -82,43 +89,52 @@ class BuildASTVisitor(StateMachineVisitor):
         self, ctx: StateMachineParser.Simple_stateContext
     ) -> SimpleState:
         state: SimpleState = self.state_registry.simple_states[ctx.NAME().getText()]
+        state.parent_state = self.current_state_parent
+        self.current_transition_parent = state
 
-        self._create_transitions(state, ctx)
+        transitions: list[Transition] = [
+            transition.accept(self) for transition in ctx.transitions
+        ]
+        self.assign_transitions_to_states(transitions)
 
         return state
 
-    def _create_transitions(
-        self,
-        state: State,
-        ctx: StateMachineParser.Composite_stateContext
-        | StateMachineParser.Simple_stateContext,
-    ) -> None:
-        state.parent_state = self.current_parent_state
+    # Visit a transition tree produced by StateMachineParser#transition.
+    def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
+        start_token: Token = ctx.TRANSITION_SYMBOL().symbol
+        end_token: Token = ctx.stop
+        # TODO: Assignments
+        assignments = None
+        location: Location = Location(
+            start_token.line,
+            end_token.line,
+            start_token.column + 1,
+            end_token.column + 1,
+        )
 
-        for transition in ctx.transitions:
-            start_token: Token = transition.TRANSITION_SYMBOL().symbol
-            end_token: Token = transition.stop
-            location: Location = Location(
-                start_token.line,
-                end_token.line,
-                start_token.column + 1,
-                end_token.column + 1,
+        if ctx.target.text == "FINAL":
+            return Transition(
+                self.current_transition_parent,
+                SimpleState(parent_state=self.current_state_parent, is_final=True),
+                ctx.input_.text.strip("'"),
+                ctx.output.text.strip("'"),
+                assignments,
+                location,
+            )
+        else:
+            return Transition(
+                self.current_transition_parent,
+                self.state_registry.get(ctx.target.text),
+                ctx.input_.text.strip("'"),
+                ctx.output.text.strip("'"),
+                assignments,
+                location,
             )
 
-            if transition.target.text == "FINAL":
-                state.create_transition(
-                    SimpleState(parent_state=self.current_parent_state, is_final=True),
-                    transition.input_.text.strip("'"),
-                    transition.output.text.strip("'"),
-                    location,
-                )
-            else:
-                state.create_transition(
-                    self.state_registry.get(transition.target.text),
-                    transition.input_.text.strip("'"),
-                    transition.output.text.strip("'"),
-                    location,
-                )
+    def assign_transitions_to_states(self, transitions: list[Transition]) -> None:
+        for transition in transitions:
+            transition.source.outgoing_transitions.append(transition)
+            transition.target.incoming_transitions.append(transition)
 
 
 class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
@@ -186,5 +202,5 @@ class DuplicatedNameError(ValueError):
 
     def __str__(self) -> str:
         return (
-            f"State names must be unique. Name '{self.duplicated_name}' is duplicated."
+            f'State names must be unique. Name {self.duplicated_name} is duplicated.'
         )
