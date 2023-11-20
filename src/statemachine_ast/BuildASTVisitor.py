@@ -76,7 +76,12 @@ class BuildASTVisitor(StateMachineVisitor):
             self.state_registry.get(ctx.initial_state().target.text)
         )
 
-        self._create_transitions(state, ctx)
+
+        self.current_transition_parent = state
+        transitions: list[Transition] = [
+            transition.accept(self) for transition in ctx.transitions
+        ]
+        self.assign_transitions_to_states(transitions)
 
         for contained_state in ctx.states:
             self.current_state_parent = state
