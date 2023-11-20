@@ -39,5 +39,40 @@ class StateMachineVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by StateMachineParser#separated_assignment.
+    def visitSeparated_assignment(self, ctx:StateMachineParser.Separated_assignmentContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#file_.
+    def visitFile_(self, ctx:StateMachineParser.File_Context):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#assignment.
+    def visitAssignment(self, ctx:StateMachineParser.AssignmentContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#expression.
+    def visitExpression(self, ctx:StateMachineParser.ExpressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#atom.
+    def visitAtom(self, ctx:StateMachineParser.AtomContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#number.
+    def visitNumber(self, ctx:StateMachineParser.NumberContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#variable.
+    def visitVariable(self, ctx:StateMachineParser.VariableContext):
+        return self.visitChildren(ctx)
+
+
 
 del StateMachineParser
