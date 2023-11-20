@@ -15,7 +15,7 @@ class StateMachine(ASTElement):
     """
 
     def __init__(self, name: str, location: Location | None = None) -> None:
-        super().__init__("stateMachine.stateMachine", location)
+        super().__init__("stateMachine.stateMachine", location=location)
         self.name = name
         self.initial_state: InitialState | None = None
         self.states: list[State] = []
@@ -51,7 +51,7 @@ class State(ASTElement):
         is_final: bool = False,
         location: Location | None = None,
     ):
-        super().__init__("stateMachine.state", location)
+        super().__init__("stateMachine.state", location=location)
         self.name: str | None = name
         self.parent_state: State | None = parent_state
         self.is_final = is_final
@@ -196,7 +196,7 @@ class Transition(ASTElement):
         output: str | None = None,
         location: Location | None = None,
     ):
-        super().__init__("stateMachine.transition", location)
+        super().__init__("stateMachine.transition", location=location)
         self.source = source
         self.target = target
         self.input = input

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from abc import abstractmethod
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -9,15 +10,16 @@ from server.Runtime import Runtime
 
 """---------------- Base protocol ----------------"""
 
+
+@dataclass
 class Arguments:
-    def __init__(self, sourceFile: str) -> None:
-        self.sourceFile = sourceFile
+    sourceFile: str
 
 
+@dataclass
 class ModelElement:
-    def __init__(self, type: str) -> None:
-        self.id = str(uuid.uuid4())
-        self.type = type
+    type: str
+    id: str = str(uuid.uuid4())
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return {
@@ -33,10 +35,9 @@ class ModelElement:
         pass
 
 
+@dataclass
 class ASTElement(ModelElement):
-    def __init__(self, type: str, location: Location | None = None) -> None:
-        super().__init__(type)
-        self.location = location
+    location: Location | None = None
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return (
@@ -53,36 +54,36 @@ class ASTElement(ModelElement):
         pass
 
 
+@dataclass
 class Location:
-    def __init__(self, line: int, endLine: int, column: int, endColumn: int) -> None:
-        self.line = line
-        self.column = column
-        self.endLine = endLine
-        self.endColumn = endColumn
+    line: int
+    endLine: int
+    column: int
+    endColumn: int
 
     def to_dict(self) -> dict:
         return self.__dict__
 
 
+@dataclass
 class ParseResponse:
-    def __init__(self, astRoot: ModelElement) -> None:
-        self.astRoot = astRoot
+    astRoot: ModelElement
 
     def to_dict(self) -> dict:
         return {"astRoot": self.astRoot.to_dict()}
 
 
+@dataclass
 class InitResponse:
-    def __init__(self, isExecutionDone: bool = False) -> None:
-        self.isExecutionDone = isExecutionDone
+    isExecutionDone: bool = False
 
     def to_dict(self) -> dict:
         return self.__dict__
 
 
+@dataclass
 class GetBreakpointTypesResponse:
-    def __init__(self, breakpointTypes: list[BreakpointType] | None = None) -> None:
-        self.breakpointTypes = [] if breakpointTypes is None else breakpointTypes
+    breakpointTypes: list[BreakpointType] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -92,35 +93,26 @@ class GetBreakpointTypesResponse:
         }
 
 
+@dataclass
 class StepArguments(Arguments):
-    def __init__(
-        self, sourceFile: str, threadId: int | None = None, stepId: str | None = None
-    ) -> None:
-        super().__init__(sourceFile)
-        self.threadId = threadId
-        self.stepId = stepId
+    threadId: int | None = None
+    stepId: str | None = None
 
 
+@dataclass
 class StepResponse:
-    def __init__(self, isExecutionDone: bool = False) -> None:
-        self.isExecutionDone = isExecutionDone
+    isExecutionDone: bool = False
 
     def to_dict(self) -> dict:
         return self.__dict__
 
 
+@dataclass
 class BreakpointType:
-    def __init__(
-        self,
-        id: str,
-        name: str,
-        parameters: list[BreakpointParameter],
-        description: str = "",
-    ) -> None:
-        self.id = id
-        self.parameters = parameters
-        self.name = name
-        self.description = description
+    id: str
+    name: str
+    parameters: list[BreakpointParameter]
+    description: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -131,18 +123,12 @@ class BreakpointType:
         }
 
 
+@dataclass
 class BreakpointParameter:
-    def __init__(
-        self,
-        name: str,
-        primitiveType: PrimitiveType | None = None,
-        objectType: str | None = None,
-        isMultivalued: bool = False,
-    ) -> None:
-        self.name = name
-        self.primitiveType = primitiveType
-        self.objectType = objectType
-        self.isMultivalued = isMultivalued
+    name: str
+    primitiveType: PrimitiveType | None = None
+    objectType: str | None = None
+    isMultivalued: bool = False
 
     def to_dict(self) -> dict:
         res = {"name": self.name, "isMultivalued": self.isMultivalued}
@@ -162,28 +148,25 @@ class PrimitiveType(Enum):
     NUMBER = "number"
 
 
+@dataclass
 class GetRuntimeStateResponse:
-    def __init__(self, runtimeStateRoot: ModelElement) -> None:
-        self.runtimeStateRoot = runtimeStateRoot
+    runtimeStateRoot: ModelElement
 
     def to_dict(self) -> dict:
         return {"runtimeStateRoot": self.runtimeStateRoot.to_dict()}
 
 
+@dataclass
 class CheckBreakpointArguments(Arguments):
-    def __init__(
-        self, sourceFile: str, typeId: str, elementId: str, stepId: str | None = None
-    ) -> None:
-        super().__init__(sourceFile)
-        self.typeId = typeId
-        self.elementId = elementId
-        self.stepId = stepId
+    typeId: str
+    elementId: str
+    stepId: str | None = None
 
 
+@dataclass
 class CheckBreakpointResponse:
-    def __init__(self, isActivated: bool, message: str | None = None) -> None:
-        self.isActivated = isActivated
-        self.message = message
+    isActivated: bool
+    message: str | None = None
 
     def to_dict(self) -> dict:
         res: dict[str, Any] = {"isActivated": self.isActivated}
@@ -194,29 +177,27 @@ class CheckBreakpointResponse:
         return res
 
 
+@dataclass
 class InitializeResponse:
-    def __init__(self, capabilities: LanguageRuntimeCapabilities) -> None:
-        self.capabilities = capabilities
+    capabilities: LanguageRuntimeCapabilities
 
     def to_dict(self) -> dict:
         return {"capabilities": self.capabilities.to_dict()}
 
 
+@dataclass
 class LanguageRuntimeCapabilities:
-    def __init__(
-        self, supportsThreads: bool, supportsStackTrace: bool, supportsScopes: bool
-    ) -> None:
-        self.supportsThreads = supportsThreads
-        self.supportsStackTrace = supportsStackTrace
-        self.supportsScopes = supportsScopes
+    supportsThreads: bool
+    supportsStackTrace: bool
+    supportsScopes: bool
 
     def to_dict(self) -> dict:
         return self.__dict__
 
 
+@dataclass
 class GetSteppingModesResponse:
-    def __init__(self, steppingModes: list[SteppingMode]) -> None:
-        self.steppingModes = steppingModes
+    steppingModes: list[SteppingMode]
 
     def to_dict(self) -> dict:
         return {
@@ -224,28 +205,25 @@ class GetSteppingModesResponse:
         }
 
 
+@dataclass
 class SteppingMode:
-    def __init__(self, id: str, name: str, description: str) -> None:
-        self.id = id
-        self.name = name
-        self.description = description
+    id: str
+    name: str
+    description: str
 
     def to_dict(self) -> dict:
         return self.__dict__
 
 
+@dataclass
 class GetAvailableStepsArguments(Arguments):
-    def __init__(
-        self, sourceFile: str, steppingModeId: str, compositeStepId: str | None = None
-    ) -> None:
-        super().__init__(sourceFile)
-        self.steppingModeId = steppingModeId
-        self.compositeStepId = compositeStepId
+    steppingModeId: str
+    compositeStepId: str | None = None
 
 
+@dataclass
 class GetAvailableStepsResponse:
-    def __init__(self, availableSteps: list[Step]) -> None:
-        self.availableSteps = availableSteps
+    availableSteps: list[Step]
 
     def to_dict(self) -> dict:
         return {
@@ -255,14 +233,12 @@ class GetAvailableStepsResponse:
         }
 
 
+@dataclass
 class Step:
-    def __init__(
-        self, id: str, name: str, isComposite: bool, description: str | None = None
-    ) -> None:
-        self.id = id
-        self.name = name
-        self.isComposite = isComposite
-        self.description = description
+    id: str
+    name: str
+    isComposite: bool
+    description: str | None = None
 
     def to_dict(self) -> dict:
         res: dict[str, Any] = {
@@ -277,15 +253,14 @@ class Step:
         return res
 
 
+@dataclass
 class GetStepLocationArguments(Arguments):
-    def __init__(self, sourceFile: str, stepId: str) -> None:
-        super().__init__(sourceFile)
-        self.stepId = stepId
+    stepId: str
 
 
+@dataclass
 class GetStepLocationResponse:
-    def __init__(self, location: Location | None = None) -> None:
-        self.location = location
+    location: Location | None = None
 
     def to_dict(self) -> dict:
         res: dict[str, Any] = {}
@@ -298,7 +273,7 @@ class GetStepLocationResponse:
 
 """---------------- Domain-specific ----------------"""
 
-
+@dataclass
 class InitArguments:
     """Arguments required to start an execution.
 
@@ -307,9 +282,8 @@ class InitArguments:
         inputs (list[str]): ordered symbols given as inputs for the execution.
     """
 
-    def __init__(self, source_file: str, inputs: list[str]) -> None:
-        self.source_file: str = source_file
-        self.inputs: list[str] = inputs
+    source_file: str
+    inputs: list[str]
 
 
 class RuntimeState(ModelElement):
