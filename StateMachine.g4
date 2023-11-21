@@ -36,7 +36,7 @@ initial_state: INITIAL TRANSITION_SYMBOL target = NAME ';';
 
 transition:
 	TRANSITION_SYMBOL target = (NAME | FINAL) '[' input = TEXT '/' output = TEXT (
-		'/' assignments = separated_assignment*
+		'/' assignments += separated_assignment*
 	)? ']' ';';
 
 separated_assignment: assignment ';';

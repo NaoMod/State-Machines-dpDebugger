@@ -5,12 +5,20 @@ from antlr4 import Token
 from server.LRP import Location
 
 from .StateMachine import (
+    Assignment,
+    BinaryExpression,
     CompositeState,
+    Expression,
     InitialState,
+    NumberAtomicExpression,
+    Operand,
+    ParenthesizedExpression,
+    Sign,
     SimpleState,
     State,
     StateMachine,
     Transition,
+    VariableAtomicExpression,
 )
 
 
@@ -76,12 +84,11 @@ class BuildASTVisitor(StateMachineVisitor):
             self.state_registry.get(ctx.initial_state().target.text)
         )
 
-
         self.current_transition_parent = state
         transitions: list[Transition] = [
             transition.accept(self) for transition in ctx.transitions
         ]
-        self.assign_transitions_to_states(transitions)
+        self._assign_transitions_to_states(transitions)
 
         for contained_state in ctx.states:
             self.current_state_parent = state
@@ -100,7 +107,7 @@ class BuildASTVisitor(StateMachineVisitor):
         transitions: list[Transition] = [
             transition.accept(self) for transition in ctx.transitions
         ]
-        self.assign_transitions_to_states(transitions)
+        self._assign_transitions_to_states(transitions)
 
         return state
 
@@ -108,8 +115,11 @@ class BuildASTVisitor(StateMachineVisitor):
     def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
         start_token: Token = ctx.TRANSITION_SYMBOL().symbol
         end_token: Token = ctx.stop
-        # TODO: Assignments
-        assignments = None
+        assignments: list[Assignment] | None = (
+            None
+            if ctx.assignments is None
+            else [assignment.accept(self) for assignment in ctx.assignments]
+        )
         location: Location = Location(
             start_token.line,
             end_token.line,
@@ -136,11 +146,59 @@ class BuildASTVisitor(StateMachineVisitor):
                 location,
             )
 
-    def assign_transitions_to_states(self, transitions: list[Transition]) -> None:
+    def visitSeparated_assignment(
+        self, ctx: StateMachineParser.Separated_assignmentContext
+    ) -> Assignment:
+        return ctx.assignment().accept(self)
+
+    def visitAssignment(self, ctx: StateMachineParser.AssignmentContext) -> Assignment:
+        return Assignment(ctx.variable().getText(), ctx.expression().accept(self))
+    
+    def visitExpression(self, ctx: StateMachineParser.ExpressionContext) -> Expression:
+        if ctx.atom() is not None:
+            if ctx.atom().number() is not None:
+                return NumberAtomicExpression(float(ctx.atom().getText()), self._find_sign(ctx))
+            else:
+                return VariableAtomicExpression(ctx.atom().getText(), self._find_sign(ctx))
+
+        if len(ctx.expression()) == 1:
+            return ParenthesizedExpression(ctx.expression()[0].accept(self))
+        
+        operand: Operand | None = self._find_operand(ctx)
+        assert len(ctx.expression()) == 2 and operand is not None, 'Malformed expression.'
+        return BinaryExpression(ctx.expression()[0].accept(self), ctx.expression()[1].accept(self), operand)
+    
+    def _assign_transitions_to_states(self, transitions: list[Transition]) -> None:
         for transition in transitions:
             transition.source.outgoing_transitions.append(transition)
             transition.target.incoming_transitions.append(transition)
 
+    def _find_sign(self, ctx: StateMachineParser.ExpressionContext) -> Sign | None:
+        if ctx.PLUS() is not None:
+            return Sign.PLUS
+        
+        if ctx.MINUS() is not None:
+            return Sign.MINUS
+        
+        return None
+    
+    def _find_operand(self, ctx: StateMachineParser.ExpressionContext) -> Operand | None:
+        if ctx.PLUS() is not None:
+            return Operand.PLUS
+        
+        if ctx.MINUS() is not None:
+            return Operand.MINUS
+        
+        if ctx.TIMES() is not None:
+            return Operand.TIMES
+        
+        if ctx.DIV() is not None:
+            return Operand.DIV
+        
+        if ctx.POW() is not None:
+            return Operand.POW
+        
+        return None
 
 class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     """Builds empty states from a StatemachineContext.
@@ -206,6 +264,4 @@ class DuplicatedNameError(ValueError):
         self.duplicated_name = duplicated_name
 
     def __str__(self) -> str:
-        return (
-            f'State names must be unique. Name {self.duplicated_name} is duplicated.'
-        )
+        return f"State names must be unique. Name {self.duplicated_name} is duplicated."

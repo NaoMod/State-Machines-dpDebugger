@@ -307,6 +307,7 @@ class RuntimeState(ModelElement):
         )
         self.current_state = runtime.current_state
         self.outputs = runtime.outputs
+        self.variables = runtime.variables
 
     def to_dict(self) -> dict:
         if self.current_state.is_final:
@@ -315,9 +316,9 @@ class RuntimeState(ModelElement):
                     "inputs": self.inputs,
                     "nextConsumedInputIndex": self.next_consumed_input_index,
                     "outputs": self.outputs,
-                    "currentState": "FINAL",
+                    "currentState": "FINAL"
                 },
-                {},
+                {"variables": VariablesRegistry(self.variables).to_dict()},
                 {},
             )
 
@@ -325,8 +326,18 @@ class RuntimeState(ModelElement):
             {
                 "inputs": self.inputs,
                 "nextConsumedInputIndex": self.next_consumed_input_index,
-                "outputs": self.outputs,
+                "outputs": self.outputs
             },
-            {},
+            {"variables": VariablesRegistry(self.variables).to_dict()},
             {"currentState": self.current_state.id},
         )
+
+class VariablesRegistry(ModelElement):
+    variables: dict[str, float]
+
+    def __init__(self, variables: dict[str, float]) -> None:
+        super().__init__("stateMachine.variablesRegistry")
+        self.variables = variables
+
+    def to_dict(self) -> dict:
+        return super().construct_dict(self.variables, {}, {})

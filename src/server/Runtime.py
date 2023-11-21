@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import server.LRP as lrpModule
 import statemachine_ast.StateMachine as stateMachineModule
 from server.ServerExceptions import UnknownBreakpointTypeError
@@ -30,6 +32,8 @@ class Runtime:
         self.current_state: stateMachineModule.State = (
             state_machine.initial_state.get_nested_initial_state()
         )
+        self.variables: dict[str, float] = {}
+        self.evaluator: ExpressionEvaluator = ExpressionEvaluator(self.variables)
         self.available_transitions: list[stateMachineModule.Transition] | None = None
 
     def execute_step(self, stepId: str | None = None) -> None:
@@ -38,11 +42,9 @@ class Runtime:
             if stepId is None
             else self.available_transitions[stepId]
         )
-        self.current_state = next_transition.target.get_nested_initial_state()
-        self.next_consumed_input_index += 1
-        if next_transition.output is not None:
-            self.outputs.append(next_transition.output)
 
+        assert next_transition is not None, "No transition to fire."
+        self._fire_transition(next_transition)
         self.available_transitions = None
 
     def compute_available_transitions(self) -> list[stateMachineModule.Transition]:
@@ -156,3 +158,61 @@ class Runtime:
             current_state = current_state.parent_state
 
         return None
+
+    def _fire_transition(self, transition: stateMachineModule.Transition) -> None:
+        if transition.assignments is not None:
+            for assignment in transition.assignments:
+                self.variables[assignment.variable] = self.evaluator.evaluate(
+                    assignment.expression
+                )
+
+        self.current_state = transition.target.get_nested_initial_state()
+        self.next_consumed_input_index += 1
+        if transition.output is not None:
+            self.outputs.append(transition.output)
+
+
+@dataclass
+class ExpressionEvaluator:
+    variables: dict[str, float]
+
+    def evaluate(self, expression: stateMachineModule.Expression) -> float:
+        return expression.accept(self)
+
+    def evaluate_binary_expression(
+        self, expression: stateMachineModule.BinaryExpression
+    ) -> float:
+        evaluated_left: float = expression.left.accept(self)
+        evaluated_right: float = expression.right.accept(self)
+        match expression.operand:
+            case stateMachineModule.Operand.POW:
+                return evaluated_left ^ evaluated_right
+            case stateMachineModule.Operand.TIMES:
+                return evaluated_left * evaluated_right
+            case stateMachineModule.Operand.DIV:
+                return evaluated_left / evaluated_right
+            case stateMachineModule.Operand.PLUS:
+                return evaluated_left + evaluated_right
+            case stateMachineModule.Operand.MINUS:
+                return evaluated_left - evaluated_right
+
+    def evaluate_parenthesized_expression(
+        self, expression: stateMachineModule.ParenthesizedExpression
+    ) -> float:
+        return expression.contained_expression.accept(self)
+
+    def evaluate_variable_atomic_expression(
+        self, expression: stateMachineModule.VariableAtomicExpression
+    ) -> float:
+        if expression.sign is stateMachineModule.Sign.MINUS:
+            return -self.variables[expression.variable]
+
+        return self.variables[expression.variable]
+
+    def evaluate_number_atomic_expression(
+        self, expression: stateMachineModule.NumberAtomicExpression
+    ) -> float:
+        if expression.sign is stateMachineModule.Sign.MINUS:
+            return -expression.number
+
+        return expression.number

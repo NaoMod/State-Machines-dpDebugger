@@ -168,14 +168,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_statemachine
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterStatemachine" ):
-                listener.enterStatemachine(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitStatemachine" ):
-                listener.exitStatemachine(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitStatemachine" ):
                 return visitor.visitStatemachine(self)
@@ -263,14 +255,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_composite_state
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterComposite_state" ):
-                listener.enterComposite_state(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitComposite_state" ):
-                listener.exitComposite_state(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitComposite_state" ):
@@ -362,14 +346,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_simple_state
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterSimple_state" ):
-                listener.enterSimple_state(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitSimple_state" ):
-                listener.exitSimple_state(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitSimple_state" ):
                 return visitor.visitSimple_state(self)
@@ -432,14 +408,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_state_rule
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterState_rule" ):
-                listener.enterState_rule(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitState_rule" ):
-                listener.exitState_rule(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitState_rule" ):
                 return visitor.visitState_rule(self)
@@ -498,14 +466,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_initial_state
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterInitial_state" ):
-                listener.enterInitial_state(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitInitial_state" ):
-                listener.exitInitial_state(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitInitial_state" ):
                 return visitor.visitInitial_state(self)
@@ -547,7 +507,8 @@ class StateMachineParser ( Parser ):
             self.target = None # Token
             self.input_ = None # Token
             self.output = None # Token
-            self.assignments = None # Separated_assignmentContext
+            self._separated_assignment = None # Separated_assignmentContext
+            self.assignments = list() # of Separated_assignmentContexts
 
         def TRANSITION_SYMBOL(self):
             return self.getToken(StateMachineParser.TRANSITION_SYMBOL, 0)
@@ -579,14 +540,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_transition
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterTransition" ):
-                listener.enterTransition(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitTransition" ):
-                listener.exitTransition(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitTransition" ):
@@ -633,7 +586,8 @@ class StateMachineParser ( Parser ):
                 _la = self._input.LA(1)
                 while _la==StateMachineParser.VARIABLE:
                     self.state = 84
-                    localctx.assignments = self.separated_assignment()
+                    localctx._separated_assignment = self.separated_assignment()
+                    localctx.assignments.append(localctx._separated_assignment)
                     self.state = 89
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
@@ -666,14 +620,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_separated_assignment
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterSeparated_assignment" ):
-                listener.enterSeparated_assignment(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitSeparated_assignment" ):
-                listener.exitSeparated_assignment(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitSeparated_assignment" ):
@@ -722,14 +668,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_file_
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterFile_" ):
-                listener.enterFile_(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitFile_" ):
-                listener.exitFile_(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitFile_" ):
@@ -788,14 +726,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_assignment
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterAssignment" ):
-                listener.enterAssignment(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitAssignment" ):
-                listener.exitAssignment(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitAssignment" ):
@@ -868,14 +798,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_expression
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterExpression" ):
-                listener.enterExpression(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitExpression" ):
-                listener.exitExpression(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitExpression" ):
@@ -1019,14 +941,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_atom
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterAtom" ):
-                listener.enterAtom(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitAtom" ):
-                listener.exitAtom(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitAtom" ):
                 return visitor.visitAtom(self)
@@ -1079,14 +993,6 @@ class StateMachineParser ( Parser ):
         def getRuleIndex(self):
             return StateMachineParser.RULE_number
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterNumber" ):
-                listener.enterNumber(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitNumber" ):
-                listener.exitNumber(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitNumber" ):
                 return visitor.visitNumber(self)
@@ -1125,14 +1031,6 @@ class StateMachineParser ( Parser ):
 
         def getRuleIndex(self):
             return StateMachineParser.RULE_variable
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterVariable" ):
-                listener.enterVariable(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitVariable" ):
-                listener.exitVariable(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitVariable" ):

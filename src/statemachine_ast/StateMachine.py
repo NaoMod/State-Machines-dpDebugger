@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 
 from server.LRP import ASTElement, Location
+from server.Runtime import ExpressionEvaluator
 
 
 class StateMachine(ASTElement):
@@ -207,12 +210,84 @@ class Transition(ASTElement):
 
 
 class Assignment(ASTElement):
-    def __init__(self, variable: str, value: str):
+    def __init__(self, variable: str, expression: Expression):
         super().__init__("stateMachine.assignment")
         self.variable = variable
-        self.value = value
+        self.expression = expression
 
     def to_dict(self) -> dict:
         return super().construct_dict(
-            {"variable": self.variable, "value": self.value}, {}, {}
+            {"variable": self.variable, "value": self.expression.value()}, {}, {}
         )
+
+
+class Expression:
+    @abstractmethod
+    def value(self) -> str:
+        pass
+
+    @abstractmethod
+    def accept(self, evaluator: ExpressionEvaluator) -> float:
+        pass
+
+
+@dataclass
+class BinaryExpression(Expression):
+    left: Expression
+    right: Expression
+    operand: Operand
+
+    def value(self) -> str:
+        return f"{self.left.value()} {self.operand} {self.right.value()}"
+
+    def accept(self, evaluator: ExpressionEvaluator) -> float:
+        return evaluator.evaluate_binary_expression(self)
+
+
+@dataclass
+class ParenthesizedExpression(Expression):
+    contained_expression: Expression
+
+    def value(self) -> str:
+        return f"({self.contained_expression.value()})"
+    
+    def accept(self, evaluator: ExpressionEvaluator) -> float:
+        return evaluator.evaluate_parenthesized_expression(self)
+
+
+@dataclass
+class NumberAtomicExpression(Expression):
+    number: float
+    sign: Sign | None = None
+
+    def value(self) -> str:
+        sign_value: str = "" if self.sign is None else self.sign
+        return f"{sign_value}{self.number}"
+    
+    def accept(self, evaluator: ExpressionEvaluator) -> float:
+        return evaluator.evaluate_number_atomic_expression(self)
+
+
+@dataclass
+class VariableAtomicExpression(Expression):
+    variable: str
+    sign: Sign | None = None
+
+    def value(self) -> str:
+        sign_value: str = "" if self.sign is None else self.sign
+        return f"{sign_value}{self.variable}"
+
+    def accept(self, evaluator: ExpressionEvaluator) -> float:
+        return evaluator.evaluate_variable_atomic_expression(self)
+
+class Operand(Enum):
+    POW = "^"
+    TIMES = "*"
+    DIV = "/"
+    PLUS = "+"
+    MINUS = "-"
+
+
+class Sign(Enum):
+    PLUS = "+"
+    MINUS = "-"
