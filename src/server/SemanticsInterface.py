@@ -47,6 +47,12 @@ breakpoints: list[BreakpointType] = [
         ],
         "Breaks when a specific transition is about to be fired.",
     ),
+    BreakpointType(
+        "stateMachine.assignmentEvaluated",
+        "Assignment Evaluated",
+        [BreakpointParameter("targetElementType", objectType="stateMachine.assignment")],
+        description="Breaks when a specific assignment is about to be evaluated.",
+    ),
 ]
 
 steppingModes: list[SteppingMode] = [

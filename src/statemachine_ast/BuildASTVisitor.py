@@ -114,7 +114,7 @@ class BuildASTVisitor(StateMachineVisitor):
     # Visit a transition tree produced by StateMachineParser#transition.
     def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
         start_token: Token = ctx.TRANSITION_SYMBOL().symbol
-        end_token: Token = ctx.stop
+        end_token: Token = ctx.target
         assignments: list[Assignment] | None = (
             None
             if ctx.assignments is None
@@ -124,7 +124,7 @@ class BuildASTVisitor(StateMachineVisitor):
             start_token.line,
             end_token.line,
             start_token.column + 1,
-            end_token.column + 1,
+            end_token.column + len(end_token.text),
         )
 
         if ctx.target.text == "FINAL":
@@ -149,25 +149,41 @@ class BuildASTVisitor(StateMachineVisitor):
     def visitSeparated_assignment(
         self, ctx: StateMachineParser.Separated_assignmentContext
     ) -> Assignment:
-        return ctx.assignment().accept(self)
+        assignment: Assignment = ctx.assignment().accept(self)
+        location: Location = Location(
+            ctx.start.line, ctx.stop.line, ctx.start.column + 1, ctx.stop.column + 1
+        )
+        assignment.location=location
+
+        return assignment
 
     def visitAssignment(self, ctx: StateMachineParser.AssignmentContext) -> Assignment:
-        return Assignment(ctx.variable().getText(), ctx.expression().accept(self))
-    
+        return Assignment(
+            ctx.variable().getText(), ctx.expression().accept(self)
+        )
+
     def visitExpression(self, ctx: StateMachineParser.ExpressionContext) -> Expression:
         if ctx.atom() is not None:
             if ctx.atom().number() is not None:
-                return NumberAtomicExpression(float(ctx.atom().getText()), self._find_sign(ctx))
+                return NumberAtomicExpression(
+                    float(ctx.atom().getText()), self._find_sign(ctx)
+                )
             else:
-                return VariableAtomicExpression(ctx.atom().getText(), self._find_sign(ctx))
+                return VariableAtomicExpression(
+                    ctx.atom().getText(), self._find_sign(ctx)
+                )
 
         if len(ctx.expression()) == 1:
             return ParenthesizedExpression(ctx.expression()[0].accept(self))
-        
+
         operand: Operand | None = self._find_operand(ctx)
-        assert len(ctx.expression()) == 2 and operand is not None, 'Malformed expression.'
-        return BinaryExpression(ctx.expression()[0].accept(self), ctx.expression()[1].accept(self), operand)
-    
+        assert (
+            len(ctx.expression()) == 2 and operand is not None
+        ), "Malformed expression."
+        return BinaryExpression(
+            ctx.expression()[0].accept(self), ctx.expression()[1].accept(self), operand
+        )
+
     def _assign_transitions_to_states(self, transitions: list[Transition]) -> None:
         for transition in transitions:
             transition.source.outgoing_transitions.append(transition)
@@ -176,29 +192,32 @@ class BuildASTVisitor(StateMachineVisitor):
     def _find_sign(self, ctx: StateMachineParser.ExpressionContext) -> Sign | None:
         if ctx.PLUS() is not None:
             return Sign.PLUS
-        
+
         if ctx.MINUS() is not None:
             return Sign.MINUS
-        
+
         return None
-    
-    def _find_operand(self, ctx: StateMachineParser.ExpressionContext) -> Operand | None:
+
+    def _find_operand(
+        self, ctx: StateMachineParser.ExpressionContext
+    ) -> Operand | None:
         if ctx.PLUS() is not None:
             return Operand.PLUS
-        
+
         if ctx.MINUS() is not None:
             return Operand.MINUS
-        
+
         if ctx.TIMES() is not None:
             return Operand.TIMES
-        
+
         if ctx.DIV() is not None:
             return Operand.DIV
-        
+
         if ctx.POW() is not None:
             return Operand.POW
-        
+
         return None
+
 
 class BasicBuildEmptyStatesVisitor(StateMachineVisitor):
     """Builds empty states from a StatemachineContext.

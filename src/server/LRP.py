@@ -8,6 +8,10 @@ from typing import Any
 
 from server.Runtime import Runtime
 
+
+def generate_uuid() -> str:
+    return str(uuid.uuid4())
+
 """---------------- Base protocol ----------------"""
 
 
@@ -19,7 +23,7 @@ class Arguments:
 @dataclass
 class ModelElement:
     type: str
-    id: str = str(uuid.uuid4())
+    id: str = field(default_factory=generate_uuid)
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return {

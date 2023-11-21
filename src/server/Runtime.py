@@ -115,6 +115,12 @@ class Runtime:
                 if state is not None:
                     message = f"State {state.name} is about to be exited."
 
+            case "stateMachine.assignmentEvaluated":
+                assignment: stateMachineModule.Assignment | None = None if next_transition.assignments is None else next((x for x in next_transition.assignments if x.id == element_id), None)
+                is_activated = assignment is not None
+                if assignment is not None:
+                    message = f"Assignment {assignment.variable} = {assignment.expression.value()} is about to be evaluated."
+
             case _:
                 raise UnknownBreakpointTypeError(type)
 

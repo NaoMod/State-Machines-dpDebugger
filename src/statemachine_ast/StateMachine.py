@@ -195,23 +195,23 @@ class Transition(ASTElement):
         if not self.target.is_final:
             refs["target"] = self.target.id
 
-        attributes = {"input": self.input, "ouptut": self.output}
+        children = {}
 
         if self.assignments is not None:
-            attributes["assignments"] = list(
+            children["assignments"] = list(
                 map(lambda a: a.to_dict(), self.assignments)
             )
 
         return super().construct_dict(
-            {**attributes},
-            {},
+            {"input": self.input, "ouptut": self.output},
+            {**children},
             {**refs},
         )
 
 
 class Assignment(ASTElement):
-    def __init__(self, variable: str, expression: Expression):
-        super().__init__("stateMachine.assignment")
+    def __init__(self, variable: str, expression: Expression, location: Location | None = None):
+        super().__init__("stateMachine.assignment", location=location)
         self.variable = variable
         self.expression = expression
 
@@ -238,7 +238,7 @@ class BinaryExpression(Expression):
     operand: Operand
 
     def value(self) -> str:
-        return f"{self.left.value()} {self.operand} {self.right.value()}"
+        return f"{self.left.value()} {self.operand.value} {self.right.value()}"
 
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_binary_expression(self)
