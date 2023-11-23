@@ -50,7 +50,11 @@ breakpoints: list[BreakpointType] = [
     BreakpointType(
         "stateMachine.assignmentEvaluated",
         "Assignment Evaluated",
-        [BreakpointParameter("targetElementType", objectType="stateMachine.assignment")],
+        [
+            BreakpointParameter(
+                "targetElementType", objectType="stateMachine.assignment"
+            )
+        ],
         description="Breaks when a specific assignment is about to be evaluated.",
     ),
 ]
@@ -110,10 +114,11 @@ class SemanticsInterface:
         """
 
         self._check_runtime_exists(args.sourceFile)
-        self.runtimes[args.sourceFile].execute_step(args.stepId)
+        executed_step = self.runtimes[args.sourceFile].execute_step(args.stepId)
 
         return StepResponse(
-            self.runtimes[args.sourceFile].find_next_transition() is None
+            [x.id for x in executed_step.get_completed_steps()],
+            self.runtimes[args.sourceFile].find_next_transition() is None,
         )
 
     def get_runtime_state(self, source_file: str) -> GetRuntimeStateResponse:
@@ -159,31 +164,38 @@ class SemanticsInterface:
         self._check_runtime_exists(args.sourceFile)
 
         runtime = self.runtimes[args.sourceFile]
-        available_steps = runtime.compute_available_transitions()
-        runtime.available_transitions = available_steps
+        available_steps = runtime.compute_available_steps(args.compositeStepId)
+        parent_step = (
+            available_steps[0].parent_step if len(available_steps) > 0 else None
+        )
 
-        steps: list[Step] = []
-        for i in range(len(available_steps)):
-            steps.append(
-                Step(
-                    i,
-                    f"{available_steps[i].source.name} -> {available_steps[i].target.name}",
-                    False,
-                )
-            )
-
-        return GetAvailableStepsResponse(steps)
+        return GetAvailableStepsResponse(
+            [x.to_LRP_step() for x in available_steps],
+            parent_step.id if parent_step is not None else None,
+        )
 
     def get_step_location(
         self, args: GetStepLocationArguments
     ) -> GetStepLocationResponse:
         self._check_runtime_exists(args.sourceFile)
+        step = next(
+            (
+                x
+                for x in self.runtimes[args.sourceFile].available_steps
+                if x.id == args.stepId
+            ),
+            None,
+        )
+        assert step is not None, f"No step with id {args.stepId}."
         location: Location | None = (
             None
-            if self.runtimes[args.sourceFile].available_transitions is None
-            else self.runtimes[args.sourceFile]
-            .available_transitions[args.stepId]
-            .location.to_dict()
+            if step.location is None
+            else Location(
+                step.location.line,
+                step.location.endLine,
+                step.location.column,
+                step.location.endColumn + 1,
+            )
         )
 
         return GetStepLocationResponse(location)

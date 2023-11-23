@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import uuid
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
 from server.Runtime import Runtime
-
-
-def generate_uuid() -> str:
-    return str(uuid.uuid4())
+from server.Utils import generate_uuid
 
 """---------------- Base protocol ----------------"""
 
@@ -105,6 +101,7 @@ class StepArguments(Arguments):
 
 @dataclass
 class StepResponse:
+    completedSteps: list[str]
     isExecutionDone: bool = False
 
     def to_dict(self) -> dict:
@@ -228,13 +225,19 @@ class GetAvailableStepsArguments(Arguments):
 @dataclass
 class GetAvailableStepsResponse:
     availableSteps: list[Step]
+    parentStepId: str | None = None
 
     def to_dict(self) -> dict:
-        return {
+        result: dict = {
             "availableSteps": list(
                 map(lambda step: step.to_dict(), self.availableSteps)
             )
         }
+
+        if self.parentStepId is not None:
+            result["parentStepId"] = self.parentStepId
+
+        return result
 
 
 @dataclass
@@ -270,12 +273,13 @@ class GetStepLocationResponse:
         res: dict[str, Any] = {}
 
         if self.location is not None:
-            res["location"] = self.location
+            res["location"] = self.location.to_dict()
 
         return res
 
 
 """---------------- Domain-specific ----------------"""
+
 
 @dataclass
 class InitArguments:
@@ -304,11 +308,7 @@ class RuntimeState(ModelElement):
     def __init__(self, runtime: Runtime) -> None:
         super().__init__("stateMachine.runtimeState")
         self.inputs = runtime.inputs
-        self.next_consumed_input_index = (
-            None
-            if runtime.available_transitions is None
-            else runtime.next_consumed_input_index
-        )
+        self.next_consumed_input_index = runtime.next_consumed_input_index
         self.current_state = runtime.current_state
         self.outputs = runtime.outputs
         self.variables = runtime.variables
@@ -320,7 +320,7 @@ class RuntimeState(ModelElement):
                     "inputs": self.inputs,
                     "nextConsumedInputIndex": self.next_consumed_input_index,
                     "outputs": self.outputs,
-                    "currentState": "FINAL"
+                    "currentState": "FINAL",
                 },
                 {"variables": VariablesRegistry(self.variables).to_dict()},
                 {},
@@ -330,11 +330,12 @@ class RuntimeState(ModelElement):
             {
                 "inputs": self.inputs,
                 "nextConsumedInputIndex": self.next_consumed_input_index,
-                "outputs": self.outputs
+                "outputs": self.outputs,
             },
             {"variables": VariablesRegistry(self.variables).to_dict()},
             {"currentState": self.current_state.id},
         )
+
 
 class VariablesRegistry(ModelElement):
     variables: dict[str, float]

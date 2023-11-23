@@ -115,11 +115,7 @@ class BuildASTVisitor(StateMachineVisitor):
     def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
         start_token: Token = ctx.TRANSITION_SYMBOL().symbol
         end_token: Token = ctx.target
-        assignments: list[Assignment] | None = (
-            None
-            if ctx.assignments is None
-            else [assignment.accept(self) for assignment in ctx.assignments]
-        )
+        assignments: list[Assignment]  = [assignment.accept(self) for assignment in ctx.assignments]
         location: Location = Location(
             start_token.line,
             end_token.line,

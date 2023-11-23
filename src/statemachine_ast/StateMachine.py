@@ -197,7 +197,7 @@ class Transition(ASTElement):
 
         children = {}
 
-        if self.assignments is not None:
+        if len(self.assignments) > 0:
             children["assignments"] = list(
                 map(lambda a: a.to_dict(), self.assignments)
             )
