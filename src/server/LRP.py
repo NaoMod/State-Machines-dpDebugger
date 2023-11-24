@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from server.Runtime import Runtime
 from server.Utils import generate_uuid
 
 """---------------- Base protocol ----------------"""
@@ -292,57 +291,3 @@ class InitArguments:
 
     source_file: str
     inputs: list[str]
-
-
-class RuntimeState(ModelElement):
-    """Represents the current state of a runtime.
-    Contains the information passed to the debugger.
-
-    Attributes:
-        inputs (list[str]): ordered symbols given as inputs for the execution.
-        next_consumed_input_index (int | None): index of the next input to consume. None if there is no input left.
-        current_state (State): current state in the state machine.
-        outputs (list[str]): outputs created so far during the execution.
-    """
-
-    def __init__(self, runtime: Runtime) -> None:
-        super().__init__("stateMachine.runtimeState")
-        self.inputs = runtime.inputs
-        self.next_consumed_input_index = runtime.next_consumed_input_index
-        self.current_state = runtime.current_state
-        self.outputs = runtime.outputs
-        self.variables = runtime.variables
-
-    def to_dict(self) -> dict:
-        if self.current_state.is_final:
-            return super().construct_dict(
-                {
-                    "inputs": self.inputs,
-                    "nextConsumedInputIndex": self.next_consumed_input_index,
-                    "outputs": self.outputs,
-                    "currentState": "FINAL",
-                },
-                {"variables": VariablesRegistry(self.variables).to_dict()},
-                {},
-            )
-
-        return super().construct_dict(
-            {
-                "inputs": self.inputs,
-                "nextConsumedInputIndex": self.next_consumed_input_index,
-                "outputs": self.outputs,
-            },
-            {"variables": VariablesRegistry(self.variables).to_dict()},
-            {"currentState": self.current_state.id},
-        )
-
-
-class VariablesRegistry(ModelElement):
-    variables: dict[str, float]
-
-    def __init__(self, variables: dict[str, float]) -> None:
-        super().__init__("stateMachine.variablesRegistry")
-        self.variables = variables
-
-    def to_dict(self) -> dict:
-        return super().construct_dict(self.variables, {}, {})

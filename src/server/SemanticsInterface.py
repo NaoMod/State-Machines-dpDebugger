@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import statemachine_ast.ASTRegistry as astRegistryModule
+from server.ExposedTypes import breakpoints, steppingModes
 from server.LRP import (
-    BreakpointParameter,
-    BreakpointType,
     CheckBreakpointArguments,
     CheckBreakpointResponse,
     GetAvailableStepsArguments,
@@ -16,57 +15,10 @@ from server.LRP import (
     InitArguments,
     InitResponse,
     Location,
-    RuntimeState,
-    Step,
     StepArguments,
-    SteppingMode,
     StepResponse,
 )
-from server.Runtime import Runtime
-
-breakpoints: list[BreakpointType] = [
-    BreakpointType(
-        "stateMachine.stateReached",
-        "State Reached",
-        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
-        "Breaks when a specific state is about to be reached.",
-    ),
-    BreakpointType(
-        "stateMachine.stateExited",
-        "State Exited",
-        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
-        description="Breaks when a specific state is about to be exited.",
-    ),
-    BreakpointType(
-        "stateMachine.transitionFired",
-        "Transition Fired",
-        [
-            BreakpointParameter(
-                "targetElementType", objectType="stateMachine.transition"
-            )
-        ],
-        "Breaks when a specific transition is about to be fired.",
-    ),
-    BreakpointType(
-        "stateMachine.assignmentEvaluated",
-        "Assignment Evaluated",
-        [
-            BreakpointParameter(
-                "targetElementType", objectType="stateMachine.assignment"
-            )
-        ],
-        description="Breaks when a specific assignment is about to be evaluated.",
-    ),
-]
-
-steppingModes: list[SteppingMode] = [
-    SteppingMode("stateMachine.atomicStep", "Atomic Step", ""),
-    SteppingMode(
-        "stateMachine.scopedTransition",
-        "Scoped Transition Step",
-        "Fires the next transition at a given depth.",
-    ),
-]
+from server.Runtime import Runtime, RuntimeState
 
 
 class SemanticsInterface:
@@ -152,7 +104,7 @@ class SemanticsInterface:
         self._check_runtime_exists(args.sourceFile)
 
         return self.runtimes[args.sourceFile].check_breakpoint(
-            args.typeId, args.elementId
+            args.typeId, args.elementId, args.stepId
         )
 
     def get_stepping_modes(self) -> GetSteppingModesResponse:
@@ -164,13 +116,15 @@ class SemanticsInterface:
         self._check_runtime_exists(args.sourceFile)
 
         runtime = self.runtimes[args.sourceFile]
-        available_steps = runtime.compute_available_steps(args.compositeStepId)
+        available_steps = list(
+            runtime.compute_available_steps(args.compositeStepId).values()
+        )
         parent_step = (
             available_steps[0].parent_step if len(available_steps) > 0 else None
         )
 
         return GetAvailableStepsResponse(
-            [x.to_LRP_step() for x in available_steps],
+            [step.to_LRP_step() for step in available_steps],
             parent_step.id if parent_step is not None else None,
         )
 
@@ -178,14 +132,7 @@ class SemanticsInterface:
         self, args: GetStepLocationArguments
     ) -> GetStepLocationResponse:
         self._check_runtime_exists(args.sourceFile)
-        step = next(
-            (
-                x
-                for x in self.runtimes[args.sourceFile].available_steps
-                if x.id == args.stepId
-            ),
-            None,
-        )
+        step = self.runtimes[args.sourceFile].available_steps.get(args.stepId)
         assert step is not None, f"No step with id {args.stepId}."
         location: Location | None = (
             None

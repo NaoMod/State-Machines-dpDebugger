@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import server.LRP as lrpModule
 import statemachine_ast.StateMachine as stateMachineModule
+from server.ExposedTypes import breakpoints
 from server.ServerExceptions import UnknownBreakpointTypeError
 from server.Utils import generate_uuid
 
@@ -37,7 +38,7 @@ class Runtime:
         self.variables: dict[str, float] = {}
         self.evaluator: ExpressionEvaluator = ExpressionEvaluator(self.variables)
         self.ongoing_composite_step: Step | None = None
-        self.available_steps: list[Step] | None = None
+        self.available_steps: dict[str, Step] | None = None
 
     def execute_step(self, step_id: str | None = None) -> AtomicStep:
         if step_id is None:
@@ -46,16 +47,13 @@ class Runtime:
                     self.find_next_transition()
                 )
                 assert next_transition is not None, "No transition to fire."
-                selected_step = TransitionStep(next_transition)
+                selected_step: Step = TransitionStep(next_transition)
             else:
-                selected_step = self.ongoing_composite_step
+                selected_step: Step = self.ongoing_composite_step
         else:
             assert self.available_steps is not None, "No steps to compute from."
-            step: Step | None = next(
-                (x for x in self.available_steps if x.id == step_id), None
-            )
-            assert step is not None, f"No step with id {step_id}."
-            selected_step = step
+            assert step_id in self.available_steps, f"No step with id {step_id}."
+            selected_step: Step = self.available_steps[step_id]
 
         atomic_step: AtomicStep = selected_step.get_next_atomic_step()
         atomic_step.execute(self)
@@ -63,9 +61,9 @@ class Runtime:
         self.available_steps = None
         return atomic_step
 
-    def compute_available_steps(self, step_id: str | None = None) -> list[Step]:
+    def compute_available_steps(self, step_id: str | None = None) -> dict[str, Step]:
         if self.next_consumed_input_index >= len(self.inputs):
-            self.available_steps = []
+            self.available_steps = {}
             return self.available_steps
 
         if step_id is None:
@@ -75,22 +73,24 @@ class Runtime:
 
             # Top-level steps are always transitions
             if self.ongoing_composite_step is None:
-                self.available_steps = [
-                    TransitionStep(t) for t in self._find_possible_transitions()
-                ]
+                self.available_steps = {}
+                for t in self._find_possible_transitions():
+                    step: TransitionStep = TransitionStep(t)
+                    self.available_steps[step.id] = step
+
                 return self.available_steps
             else:
-                self.available_steps = self.ongoing_composite_step.get_possible_steps()
+                self.available_steps = {
+                    step.id: step
+                    for step in self.ongoing_composite_step.get_possible_steps()
+                }
                 return self.available_steps
         else:
             assert (
                 self.available_steps is not None
             ), "No available steps to compute from."
-            step: Step | None = next(
-                (x for x in self.available_steps if x.id == step_id), None
-            )
-            assert step is not None, f"No step with id {step_id}."
-            self.available_steps = step.get_possible_steps()
+            assert step_id in self.available_steps, f"No step with id {step_id}."
+            self.available_steps = {step.id: step for step in self.available_steps[step_id].get_possible_steps()}
             return self.available_steps
 
     def find_next_transition(self) -> stateMachineModule.Transition | None:
@@ -108,6 +108,39 @@ class Runtime:
 
         return None
 
+    def check_breakpoint(
+        self, type: str, element_id: str, step_id: str | None = None
+    ) -> lrpModule.CheckBreakpointResponse:
+        if type not in [x.id for x in breakpoints]:
+            raise UnknownBreakpointTypeError(type)
+
+        if step_id is None:
+            if self.ongoing_composite_step is None:
+                next_transition: stateMachineModule.Transition | None = (
+                    self.find_next_transition()
+                )
+                selected_step: Step | None = (
+                    TransitionStep(next_transition)
+                    if next_transition is not None
+                    else None
+                )
+            else:
+                selected_step: Step | None = self.ongoing_composite_step
+        else:
+            assert self.available_steps is not None, "No steps to compute from."
+            assert step_id in self.available_steps, f"No step with id {step_id}."
+            selected_step: Step | None = self.available_steps[step_id]
+
+        if selected_step is None:
+            return lrpModule.CheckBreakpointResponse(False)
+
+        message: str | None = selected_step.get_next_atomic_step().check_breakpoint(
+            type, element_id, self
+        )
+        is_activated = message is not None
+
+        return lrpModule.CheckBreakpointResponse(is_activated, message)
+
     def _find_possible_transitions(self) -> list[stateMachineModule.Transition]:
         available_transitions: list[stateMachineModule.Transition] = []
         state: stateMachineModule.State | None = self.current_state
@@ -121,115 +154,8 @@ class Runtime:
 
         return available_transitions
 
-    def check_breakpoint(
-        self, type: str, element_id: str, stepId: str | None = None
-    ) -> lrpModule.CheckBreakpointResponse:
-        # next_transition: stateMachineModule.Transition | None = (
-        #     self.find_next_transition()
-        #     if stepId is None
-        #     else self.available_transitions[stepId]
-        # )
-
-        # if next_transition is None:
-        #     return lrpModule.CheckBreakpointResponse(False)
-
-        # is_activated = False
-        # message: str = ""
-
-        # match type:
-        #     case "stateMachine.transitionFired":
-        #         is_activated = next_transition.id == element_id
-        #         if is_activated:
-        #             message = f"Transition {next_transition.source.name} -> {next_transition.target.name} is about to be fired."
-
-        #     case "stateMachine.stateReached":
-        #         state: stateMachineModule.State | None = self._find_reached_state(
-        #             next_transition.target, element_id
-        #         )
-        #         is_activated = state is not None
-        #         if state is not None:
-        #             message = f"State {state.name} is about to be reached."
-
-        #     case "stateMachine.stateExited":
-        #         state: stateMachineModule.State | None = self._find_exited_state(
-        #             self.current_state, next_transition.source, element_id
-        #         )
-        #         is_activated = state is not None
-        #         if state is not None:
-        #             message = f"State {state.name} is about to be exited."
-
-        #     case "stateMachine.assignmentEvaluated":
-        #         assignment: stateMachineModule.Assignment | None = (
-        #             None
-        #             if next_transition.assignments is None
-        #             else next(
-        #                 (x for x in next_transition.assignments if x.id == element_id),
-        #                 None,
-        #             )
-        #         )
-        #         is_activated = assignment is not None
-        #         if assignment is not None:
-        #             message = f"Assignment {assignment.variable} = {assignment.expression.value()} is about to be evaluated."
-
-        #     case _:
-        #         raise UnknownBreakpointTypeError(type)
-
-        # return lrpModule.CheckBreakpointResponse(
-        #     is_activated, message if is_activated else None
-        # )
-        assert False, "Not implemented."
-
     def evaluate(self, expression: stateMachineModule.Expression) -> float:
         return self.evaluator.evaluate(expression)
-
-    def _find_exited_state(
-        self,
-        current_state: stateMachineModule.State,
-        transition_source: stateMachineModule.State,
-        state_id_to_match: str,
-    ) -> stateMachineModule.State | None:
-        if current_state.id == state_id_to_match:
-            return current_state
-
-        if (
-            current_state.id == transition_source.id
-            or current_state.parent_state is None
-        ):
-            return None
-
-        return self._find_exited_state(
-            current_state.parent_state, transition_source, state_id_to_match
-        )
-
-    def _find_reached_state(
-        self, parent_state: stateMachineModule.State, state_id_to_match: str
-    ) -> stateMachineModule.State | None:
-        if parent_state.id == state_id_to_match:
-            return parent_state
-
-        current_state: stateMachineModule.State | None = (
-            parent_state.get_nested_initial_state()
-        )
-
-        while current_state is not parent_state and current_state is not None:
-            if current_state.id == state_id_to_match:
-                return current_state
-
-            current_state = current_state.parent_state
-
-        return None
-
-    def _fire_transition(self, transition: stateMachineModule.Transition) -> None:
-        if transition.assignments is not None:
-            for assignment in transition.assignments:
-                self.variables[assignment.variable] = self.evaluator.evaluate(
-                    assignment.expression
-                )
-
-        self.current_state = transition.target.get_nested_initial_state()
-        self.next_consumed_input_index += 1
-        if transition.output is not None:
-            self.outputs.append(transition.output)
 
 
 @dataclass
@@ -297,6 +223,12 @@ class Step:
 
     @abstractmethod
     def get_possible_steps(self) -> list[Step]:
+        pass
+
+    @abstractmethod
+    def check_breakpoint(
+        self, type: str, element_id: str, runtime: Runtime
+    ) -> str | None:
         pass
 
     def find_ongoing_step(self) -> Step | None:
@@ -434,6 +366,18 @@ class TransitionStep(CompositeStep):
 
         assert False, "Step already completed."
 
+    def check_breakpoint(
+        self, type: str, element_id: str, runtime: Runtime
+    ) -> str | None:
+        if type == "stateMachine.transitionFired":
+            return (
+                f"Transition {self.transition.source.name} -> {self.transition.target.name} is about to be fired."
+                if self.transition.id == element_id
+                else None
+            )
+
+        return None
+
 
 class AssignmentStep(AtomicStep):
     def __init__(
@@ -453,6 +397,18 @@ class AssignmentStep(AtomicStep):
 
         self.parent_step.child_step_completed()
         self._is_completed = True
+
+    def check_breakpoint(
+        self, type: str, element_id: str, runtime: Runtime
+    ) -> str | None:
+        if type == "stateMachine.assignmentEvaluated":
+            return (
+                f"Assignment {self.assignment.variable} = {self.assignment.expression.value()} is about to be evaluated."
+                if self.assignment.id == element_id
+                else None
+            )
+
+        return self.parent_step.check_breakpoint(type, element_id, runtime)
 
 
 class StateChangeStep(AtomicStep):
@@ -476,3 +432,117 @@ class StateChangeStep(AtomicStep):
 
         self.parent_step.child_step_completed()
         self._is_completed = True
+
+    def check_breakpoint(
+        self, type: str, element_id: str, runtime: Runtime
+    ) -> str | None:
+        if type == "stateMachine.stateReached":
+            state: stateMachineModule.State | None = self._find_reached_state(
+                self.target, element_id
+            )
+            return (
+                f"State {state.name} is about to be reached."
+                if state is not None
+                else None
+            )
+
+        if type == "stateMachine.stateExited":
+            state: stateMachineModule.State | None = self._find_exited_state(
+                runtime.current_state, self.parent_step.transition.source, element_id
+            )
+            return (
+                f"State {state.name} is about to be exited."
+                if state is not None
+                else None
+            )
+
+        return self.parent_step.check_breakpoint(type, element_id, runtime)
+
+    def _find_reached_state(
+        self, parent_state: stateMachineModule.State, state_id_to_match: str
+    ) -> stateMachineModule.State | None:
+        if parent_state.id == state_id_to_match:
+            return parent_state
+
+        current_state: stateMachineModule.State | None = (
+            parent_state.get_nested_initial_state()
+        )
+
+        while current_state is not parent_state and current_state is not None:
+            if current_state.id == state_id_to_match:
+                return current_state
+
+            current_state = current_state.parent_state
+
+        return None
+
+    def _find_exited_state(
+        self,
+        current_state: stateMachineModule.State,
+        transition_source: stateMachineModule.State,
+        state_id_to_match: str,
+    ) -> stateMachineModule.State | None:
+        if current_state.id == state_id_to_match:
+            return current_state
+
+        if (
+            current_state.id == transition_source.id
+            or current_state.parent_state is None
+        ):
+            return None
+
+        return self._find_exited_state(
+            current_state.parent_state, transition_source, state_id_to_match
+        )
+
+
+class RuntimeState(lrpModule.ModelElement):
+    """Represents the current state of a runtime.
+    Contains the information passed to the debugger.
+
+    Attributes:
+        inputs (list[str]): ordered symbols given as inputs for the execution.
+        next_consumed_input_index (int | None): index of the next input to consume. None if there is no input left.
+        current_state (State): current state in the state machine.
+        outputs (list[str]): outputs created so far during the execution.
+    """
+
+    def __init__(self, runtime: Runtime) -> None:
+        super().__init__("stateMachine.runtimeState")
+        self.inputs = runtime.inputs
+        self.next_consumed_input_index = runtime.next_consumed_input_index
+        self.current_state = runtime.current_state
+        self.outputs = runtime.outputs
+        self.variables = runtime.variables
+
+    def to_dict(self) -> dict:
+        if self.current_state.is_final:
+            return super().construct_dict(
+                {
+                    "inputs": self.inputs,
+                    "nextConsumedInputIndex": self.next_consumed_input_index,
+                    "outputs": self.outputs,
+                    "currentState": "FINAL",
+                },
+                {"variables": VariablesRegistry(self.variables).to_dict()},
+                {},
+            )
+
+        return super().construct_dict(
+            {
+                "inputs": self.inputs,
+                "nextConsumedInputIndex": self.next_consumed_input_index,
+                "outputs": self.outputs,
+            },
+            {"variables": VariablesRegistry(self.variables).to_dict()},
+            {"currentState": self.current_state.id},
+        )
+
+
+class VariablesRegistry(lrpModule.ModelElement):
+    def __init__(self, variables: dict[str, float]) -> None:
+        super().__init__("stateMachine.variablesRegistry")
+        self.variables = variables
+
+    def to_dict(self) -> dict:
+        return super().construct_dict(self.variables, {}, {})
