@@ -85,11 +85,7 @@ class GetBreakpointTypesResponse:
     breakpointTypes: list[BreakpointType] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return {
-            "breakpointTypes": list(
-                map(lambda breakpoint: breakpoint.to_dict(), self.breakpointTypes)
-            )
-        }
+        return {"breakpointTypes": [bt.to_dict() for bt in self.breakpointTypes]}
 
 
 @dataclass
@@ -119,7 +115,7 @@ class BreakpointType:
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "parameters": list(map(lambda param: param.to_dict(), self.parameters)),
+            "parameters": [param.to_dict() for param in self.parameters],
         }
 
 
@@ -200,9 +196,7 @@ class GetSteppingModesResponse:
     steppingModes: list[SteppingMode]
 
     def to_dict(self) -> dict:
-        return {
-            "steppingModes": list(map(lambda mode: mode.to_dict(), self.steppingModes))
-        }
+        return {"steppingModes": [mode.to_dict() for mode in self.steppingModes]}
 
 
 @dataclass
@@ -228,9 +222,7 @@ class GetAvailableStepsResponse:
 
     def to_dict(self) -> dict:
         result: dict = {
-            "availableSteps": list(
-                map(lambda step: step.to_dict(), self.availableSteps)
-            )
+            "availableSteps": [step.to_dict() for step in self.availableSteps]
         }
 
         if self.parentStepId is not None:

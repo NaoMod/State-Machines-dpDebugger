@@ -26,7 +26,7 @@ class StateMachine(ASTElement):
     def to_dict(self) -> dict:
         return super().construct_dict(
             {"name": self.name},
-            {"states": list(map(lambda state: state.to_dict(), self.states))},
+            {"states": [state.to_dict() for state in self.states]},
             {
                 "initialState": ""
                 if self.initial_state is None
@@ -60,7 +60,7 @@ class State(ASTElement):
         self.is_final = is_final
         self.outgoing_transitions: list[Transition] = []
         self.incoming_transitions: list[Transition] = []
-        self.states = []
+        self.states: list[State] = []
 
     @abstractmethod
     def get_nested_initial_state(self) -> State:
@@ -88,12 +88,8 @@ class State(ASTElement):
         return super().construct_dict(
             {"name": self.name, **attributes},
             {
-                "transitions": list(
-                    map(lambda transition: transition.to_dict(), transitions)
-                ),
-                "final transitions": list(
-                    map(lambda transition: transition.to_dict(), final_transitions)
-                ),
+                "transitions": [t.to_dict() for t in transitions],
+                "final transitions": [t.to_dict() for t in final_transitions],
                 **children,
             },
             {**refs},
@@ -142,7 +138,7 @@ class CompositeState(State):
 
         return super().construct_dict(
             {},
-            {"states": list(map(lambda state: state.to_dict(), self.states))},
+            {"states": [state.to_dict() for state in self.states]},
             {"initialState": self.initial_state.target.id},
         )
 
@@ -198,9 +194,7 @@ class Transition(ASTElement):
         children = {}
 
         if len(self.assignments) > 0:
-            children["assignments"] = list(
-                map(lambda a: a.to_dict(), self.assignments)
-            )
+            children["assignments"] = [a.to_dict() for a in self.assignments]
 
         return super().construct_dict(
             {"input": self.input, "ouptut": self.output},
@@ -210,7 +204,9 @@ class Transition(ASTElement):
 
 
 class Assignment(ASTElement):
-    def __init__(self, variable: str, expression: Expression, location: Location | None = None):
+    def __init__(
+        self, variable: str, expression: Expression, location: Location | None = None
+    ):
         super().__init__("stateMachine.assignment", location=location)
         self.variable = variable
         self.expression = expression
@@ -250,7 +246,7 @@ class ParenthesizedExpression(Expression):
 
     def value(self) -> str:
         return f"({self.contained_expression.value()})"
-    
+
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_parenthesized_expression(self)
 
@@ -263,7 +259,7 @@ class NumberAtomicExpression(Expression):
     def value(self) -> str:
         sign_value: str = "" if self.sign is None else self.sign
         return f"{sign_value}{self.number}"
-    
+
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_number_atomic_expression(self)
 
@@ -279,6 +275,7 @@ class VariableAtomicExpression(Expression):
 
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_variable_atomic_expression(self)
+
 
 class Operand(Enum):
     POW = "^"
