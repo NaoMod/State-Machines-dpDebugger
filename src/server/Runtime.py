@@ -315,7 +315,7 @@ class TransitionStep(CompositeStep):
     def __init__(self, transition: stateMachineModule.Transition) -> None:
         super().__init__(
             f"{transition.source.name} -> {transition.target.name}",
-            location=transition.location,
+            location=transition.step_location,
         )
         self.transition = transition
         self.next_assignment_index: int = 0
@@ -386,7 +386,7 @@ class AssignmentStep(AtomicStep):
         super().__init__(
             f"{assignment.variable} = {assignment.expression.value()}",
             parent_step=parent_step,
-            location=assignment.location,
+            location=assignment.step_location,
         )
         self.assignment = assignment
 

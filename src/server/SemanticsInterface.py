@@ -134,18 +134,8 @@ class SemanticsInterface:
         self._check_runtime_exists(args.sourceFile)
         step = self.runtimes[args.sourceFile].available_steps.get(args.stepId)
         assert step is not None, f"No step with id {args.stepId}."
-        location: Location | None = (
-            None
-            if step.location is None
-            else Location(
-                step.location.line,
-                step.location.endLine,
-                step.location.column,
-                step.location.endColumn + 1,
-            )
-        )
 
-        return GetStepLocationResponse(location)
+        return GetStepLocationResponse(step.location)
 
     def _check_runtime_exists(self, source_file: str) -> None:
         """Checks that a runtime exists for a given source file.

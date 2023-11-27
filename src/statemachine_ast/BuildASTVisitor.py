@@ -115,12 +115,21 @@ class BuildASTVisitor(StateMachineVisitor):
     def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
         start_token: Token = ctx.TRANSITION_SYMBOL().symbol
         end_token: Token = ctx.target
-        assignments: list[Assignment]  = [assignment.accept(self) for assignment in ctx.assignments]
+        assignments: list[Assignment] = [
+            assignment.accept(self) for assignment in ctx.assignments
+        ]
         location: Location = Location(
             start_token.line,
             end_token.line,
             start_token.column + 1,
             end_token.column + len(end_token.text),
+        )
+
+        step_location: Location = Location(
+            start_token.line,
+            ctx.stop.line,
+            start_token.column + 1,
+            ctx.stop.column + len(ctx.stop.text) + 1,
         )
 
         if ctx.target.text == "FINAL":
@@ -131,6 +140,7 @@ class BuildASTVisitor(StateMachineVisitor):
                 ctx.output.text.strip("'"),
                 assignments,
                 location,
+                step_location,
             )
         else:
             return Transition(
@@ -140,6 +150,7 @@ class BuildASTVisitor(StateMachineVisitor):
                 ctx.output.text.strip("'"),
                 assignments,
                 location,
+                step_location,
             )
 
     def visitSeparated_assignment(
@@ -149,14 +160,16 @@ class BuildASTVisitor(StateMachineVisitor):
         location: Location = Location(
             ctx.start.line, ctx.stop.line, ctx.start.column + 1, ctx.stop.column + 1
         )
-        assignment.location=location
+        assignment.location = location
+        step_location: Location = Location(
+            location.line, location.endLine, location.column, location.endColumn + 1
+        )
+        assignment.step_location = step_location
 
         return assignment
 
     def visitAssignment(self, ctx: StateMachineParser.AssignmentContext) -> Assignment:
-        return Assignment(
-            ctx.variable().getText(), ctx.expression().accept(self)
-        )
+        return Assignment(ctx.variable().getText(), ctx.expression().accept(self))
 
     def visitExpression(self, ctx: StateMachineParser.ExpressionContext) -> Expression:
         if ctx.atom() is not None:

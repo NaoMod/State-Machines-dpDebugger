@@ -177,8 +177,9 @@ class Transition(ASTElement):
         output: str | None = None,
         assignments: list[Assignment] | None = None,
         location: Location | None = None,
+        step_location: Location | None = None,
     ):
-        super().__init__("stateMachine.transition", location=location)
+        super().__init__("stateMachine.transition", location=location, step_location=step_location)
         self.source = source
         self.target = target
         self.input = input

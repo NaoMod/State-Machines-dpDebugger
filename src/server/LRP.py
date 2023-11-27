@@ -37,6 +37,7 @@ class ModelElement:
 @dataclass
 class ASTElement(ModelElement):
     location: Location | None = None
+    step_location: Location | None = None
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return (
