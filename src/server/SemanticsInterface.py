@@ -14,7 +14,6 @@ from server.LRP import (
     GetSteppingModesResponse,
     InitArguments,
     InitResponse,
-    Location,
     StepArguments,
     StepResponse,
 )

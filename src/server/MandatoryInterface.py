@@ -2,7 +2,7 @@ from parser.StateMachineLexer import StateMachineLexer
 from parser.StateMachineParser import StateMachineParser
 
 from antlr4 import CommonTokenStream, FileStream
-from server.LRP import InitializeResponse, LanguageRuntimeCapabilities, ParseResponse
+from server.LRP import ParseResponse
 from statemachine_ast.ASTRegistry import ASTRegistry
 from statemachine_ast.BuildASTVisitor import BuildASTVisitor
 from statemachine_ast.StateMachine import StateMachine
@@ -17,12 +17,6 @@ class MandatoryInterface:
 
     def __init__(self, registry: ASTRegistry) -> None:
         self.registry: ASTRegistry = registry
-
-    def initialize(self) -> InitializeResponse:
-        capabilities: LanguageRuntimeCapabilities = LanguageRuntimeCapabilities(
-            False, False, False
-        )
-        return InitializeResponse(capabilities)
 
     def parse(self, file: str) -> ParseResponse:
         """Parses a file and stores the generated StateMachine in self.registry.

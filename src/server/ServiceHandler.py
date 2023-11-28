@@ -28,10 +28,6 @@ class ServiceHandler:
         self.semantics_interface: SemanticsInterface = SemanticsInterface(self.registry)
 
     @request
-    def initialize(self) -> dict:
-        return self.mandatory_interface.initialize().to_dict()
-
-    @request
     def parse(self, args: dict) -> dict:
         return self.mandatory_interface.parse(args["sourceFile"]).to_dict()
 
@@ -48,7 +44,7 @@ class ServiceHandler:
     @request
     def executeStep(self, args: dict) -> dict:
         return self.semantics_interface.execute_step(
-            StepArguments(args["sourceFile"], args.get("threadId"), args.get("stepId"))
+            StepArguments(args["sourceFile"], args.get("stepId"))
         ).to_dict()
 
     @request

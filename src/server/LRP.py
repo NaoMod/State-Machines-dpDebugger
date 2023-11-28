@@ -91,7 +91,6 @@ class GetBreakpointTypesResponse:
 
 @dataclass
 class StepArguments(Arguments):
-    threadId: int | None = None
     stepId: str | None = None
 
 
@@ -172,24 +171,6 @@ class CheckBreakpointResponse:
             res["message"] = self.message
 
         return res
-
-
-@dataclass
-class InitializeResponse:
-    capabilities: LanguageRuntimeCapabilities
-
-    def to_dict(self) -> dict:
-        return {"capabilities": self.capabilities.to_dict()}
-
-
-@dataclass
-class LanguageRuntimeCapabilities:
-    supportsThreads: bool
-    supportsStackTrace: bool
-    supportsScopes: bool
-
-    def to_dict(self) -> dict:
-        return self.__dict__
 
 
 @dataclass
