@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import statemachine_ast.ASTRegistry as astRegistryModule
-from server.ExposedTypes import breakpoints, steppingModes
+from server.ExposedTypes import breakpoints
 from server.LRP import (
     CheckBreakpointArguments,
     CheckBreakpointResponse,
@@ -11,7 +11,6 @@ from server.LRP import (
     GetRuntimeStateResponse,
     GetStepLocationArguments,
     GetStepLocationResponse,
-    GetSteppingModesResponse,
     InitArguments,
     InitResponse,
     StepArguments,
@@ -105,9 +104,6 @@ class SemanticsInterface:
         return self.runtimes[args.sourceFile].check_breakpoint(
             args.typeId, args.elementId, args.stepId
         )
-
-    def get_stepping_modes(self) -> GetSteppingModesResponse:
-        return GetSteppingModesResponse(steppingModes)
 
     def get_available_steps(
         self, args: GetAvailableStepsArguments

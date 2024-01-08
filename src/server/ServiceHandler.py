@@ -63,15 +63,9 @@ class ServiceHandler:
         ).to_dict()
 
     @request
-    def getSteppingModes(self) -> dict:
-        return self.semantics_interface.get_stepping_modes().to_dict()
-
-    @request
     def getAvailableSteps(self, args: dict) -> dict:
         return self.semantics_interface.get_available_steps(
-            GetAvailableStepsArguments(
-                args["sourceFile"], args["steppingModeId"], args.get("compositeStepId")
-            )
+            GetAvailableStepsArguments(args["sourceFile"], args.get("compositeStepId"))
         ).to_dict()
 
     @request

@@ -174,26 +174,7 @@ class CheckBreakpointResponse:
 
 
 @dataclass
-class GetSteppingModesResponse:
-    steppingModes: list[SteppingMode]
-
-    def to_dict(self) -> dict:
-        return {"steppingModes": [mode.to_dict() for mode in self.steppingModes]}
-
-
-@dataclass
-class SteppingMode:
-    id: str
-    name: str
-    description: str
-
-    def to_dict(self) -> dict:
-        return self.__dict__
-
-
-@dataclass
 class GetAvailableStepsArguments(Arguments):
-    steppingModeId: str
     compositeStepId: str | None = None
 
 

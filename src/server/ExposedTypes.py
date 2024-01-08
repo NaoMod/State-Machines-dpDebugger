@@ -1,4 +1,4 @@
-from server.LRP import BreakpointParameter, BreakpointType, SteppingMode
+from server.LRP import BreakpointParameter, BreakpointType
 
 breakpoints: list[BreakpointType] = [
     BreakpointType(
@@ -32,14 +32,5 @@ breakpoints: list[BreakpointType] = [
             )
         ],
         description="Breaks when a specific assignment is about to be evaluated.",
-    ),
-]
-
-steppingModes: list[SteppingMode] = [
-    SteppingMode("stateMachine.atomicStep", "Atomic Step", ""),
-    SteppingMode(
-        "stateMachine.scopedTransition",
-        "Scoped Transition Step",
-        "Fires the next transition at a given depth.",
     ),
 ]
