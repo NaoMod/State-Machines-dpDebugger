@@ -34,7 +34,7 @@ class ServiceHandler:
     @request
     def initExecution(self, args: dict) -> dict:
         return self.semantics_interface.init_execution(
-            InitArguments(args["sourceFile"], args["inputs"])
+            InitArguments(args["sourceFile"], args.get("inputs"))
         ).to_dict()
 
     @request

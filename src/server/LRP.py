@@ -245,4 +245,4 @@ class InitArguments:
     """
 
     source_file: str
-    inputs: list[str]
+    inputs: list[str] | None = None

@@ -35,7 +35,7 @@ state_rule: (simple_state | composite_state);
 initial_state: INITIAL TRANSITION_SYMBOL target = NAME ';';
 
 transition:
-	TRANSITION_SYMBOL target = (NAME | FINAL) '[' input = TEXT '/' output = TEXT (
+	TRANSITION_SYMBOL target = (NAME | FINAL) '[' input = TEXT (
 		'/' assignments += separated_assignment*
 	)? ']' ';';
 

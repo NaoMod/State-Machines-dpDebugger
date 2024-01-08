@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from abc import abstractmethod
 from dataclasses import dataclass, field
 
@@ -18,20 +19,21 @@ class Runtime:
         current_state (State): current state in the state machine.
         inputs (list[str]): ordered symbols given as inputs for the execution.
         next_consumed_input_index (int): index of the next input to consume.
-        outputs (list[str]): outputs created so far during the execution.
         available_transitions (list[Transition]): list of transitions that can be fired.
     """
 
     def __init__(
-        self, state_machine: stateMachineModule.StateMachine, inputs: list[str]
+        self, state_machine: stateMachineModule.StateMachine, inputs: list[str] | None
     ) -> None:
         self.state_machine: stateMachineModule.StateMachine = state_machine
         if state_machine.initial_state is None:
             raise ValueError("No initial state.")
 
-        self.inputs: list[str] = inputs
-        self.outputs: list[str] = []
-        self.next_consumed_input_index: int = 0
+        self.hasInputs = inputs is not None
+        if self.hasInputs:
+            self.inputs: list[str] = inputs
+            self.next_consumed_input_index: int = 0
+
         self.current_state: stateMachineModule.State = (
             state_machine.initial_state.get_nested_initial_state()
         )
@@ -62,7 +64,7 @@ class Runtime:
         return atomic_step
 
     def compute_available_steps(self, step_id: str | None = None) -> dict[str, Step]:
-        if self.next_consumed_input_index >= len(self.inputs):
+        if self.hasInputs and self.next_consumed_input_index >= len(self.inputs):
             self.available_steps = {}
             return self.available_steps
 
@@ -90,23 +92,33 @@ class Runtime:
                 self.available_steps is not None
             ), "No available steps to compute from."
             assert step_id in self.available_steps, f"No step with id {step_id}."
-            self.available_steps = {step.id: step for step in self.available_steps[step_id].get_possible_steps()}
+            self.available_steps = {
+                step.id: step
+                for step in self.available_steps[step_id].get_possible_steps()
+            }
             return self.available_steps
 
     def find_next_transition(self) -> stateMachineModule.Transition | None:
-        if self.next_consumed_input_index >= len(self.inputs):
+        if self.hasInputs and self.next_consumed_input_index >= len(self.inputs):
             return None
 
+        possibleSourceStates: list[stateMachineModule.State] = []
         state: stateMachineModule.State | None = self.current_state
 
         while state is not None:
-            for transition in state.outgoing_transitions:
-                if transition.input == self.inputs[self.next_consumed_input_index]:
-                    return transition
+            if len(state.outgoing_transitions) > 0:
+                possibleSourceStates.append(state)
 
             state = state.parent_state
 
-        return None
+        if len(possibleSourceStates) == 0:
+            return None
+
+        stateIndex: int = random.randint(0, len(possibleSourceStates) - 1)
+        transitionIndex: int = random.randint(
+            0, len(possibleSourceStates[stateIndex].outgoing_transitions) - 1
+        )
+        return possibleSourceStates[stateIndex].outgoing_transitions[transitionIndex]
 
     def check_breakpoint(
         self, type: str, element_id: str, step_id: str | None = None
@@ -147,8 +159,7 @@ class Runtime:
 
         while state is not None:
             for transition in state.outgoing_transitions:
-                if transition.input == self.inputs[self.next_consumed_input_index]:
-                    available_transitions.append(transition)
+                available_transitions.append(transition)
 
             state = state.parent_state
 
@@ -313,8 +324,9 @@ class CompositeStep(Step):
 
 class TransitionStep(CompositeStep):
     def __init__(self, transition: stateMachineModule.Transition) -> None:
+        target: str = "FINAL" if transition.target.is_final else transition.target.name
         super().__init__(
-            f"{transition.source.name} -> {transition.target.name}",
+            f"{transition.source.name} --'{transition.input}'--> {target}",
             location=transition.step_location,
         )
         self.transition = transition
@@ -333,7 +345,7 @@ class TransitionStep(CompositeStep):
             return AssignmentStep(next_assignment, self)
 
         if not self.state_changed:
-            return StateChangeStep(self.transition.target, self.transition.output, self)
+            return StateChangeStep(self.transition.target, self)
 
         assert False, "Step already completed."
 
@@ -347,7 +359,7 @@ class TransitionStep(CompositeStep):
 
         if not self.state_changed:
             return [
-                StateChangeStep(self.transition.target, self.transition.output, self)
+                StateChangeStep(self.transition.target, self)
             ]
 
         assert False, "Step already completed."
@@ -415,20 +427,18 @@ class StateChangeStep(AtomicStep):
     def __init__(
         self,
         target: stateMachineModule.State,
-        output: str | None,
         parent_step: TransitionStep,
     ) -> None:
         super().__init__(
-            f"New state: {target.name} / Output: {output}", parent_step=parent_step
+            f"New state: {target.name}", parent_step=parent_step
         )
         self.target = target
-        self.output = output
 
     def execute(self, runtime: Runtime) -> None:
         runtime.current_state = self.target.get_nested_initial_state()
-        runtime.next_consumed_input_index += 1
-        if self.output is not None:
-            runtime.outputs.append(self.output)
+
+        if runtime.hasInputs:
+            runtime.next_consumed_input_index += 1
 
         self.parent_step.child_step_completed()
         self._is_completed = True
@@ -504,36 +514,37 @@ class RuntimeState(lrpModule.ModelElement):
         inputs (list[str]): ordered symbols given as inputs for the execution.
         next_consumed_input_index (int | None): index of the next input to consume. None if there is no input left.
         current_state (State): current state in the state machine.
-        outputs (list[str]): outputs created so far during the execution.
     """
 
     def __init__(self, runtime: Runtime) -> None:
         super().__init__("stateMachine.runtimeState")
-        self.inputs = runtime.inputs
-        self.next_consumed_input_index = runtime.next_consumed_input_index
         self.current_state = runtime.current_state
-        self.outputs = runtime.outputs
         self.variables = runtime.variables
+        self.hasInputs = runtime.hasInputs
+        if runtime.hasInputs:
+            self.inputs = runtime.inputs
+            self.next_consumed_input_index = runtime.next_consumed_input_index
 
     def to_dict(self) -> dict:
         if self.current_state.is_final:
+            attributes: dict = {"currentState": "FINAL"}
+            if self.hasInputs:
+                attributes["inputs"] = self.inputs
+                attributes["nextConsumedInputIndex"] = self.next_consumed_input_index
+
             return super().construct_dict(
-                {
-                    "inputs": self.inputs,
-                    "nextConsumedInputIndex": self.next_consumed_input_index,
-                    "outputs": self.outputs,
-                    "currentState": "FINAL",
-                },
+                attributes,
                 {"variables": VariablesRegistry(self.variables).to_dict()},
                 {},
             )
 
+        attributes: dict = {}
+        if self.hasInputs:
+            attributes["inputs"] = self.inputs
+            attributes["nextConsumedInputIndex"] = self.next_consumed_input_index
+
         return super().construct_dict(
-            {
-                "inputs": self.inputs,
-                "nextConsumedInputIndex": self.next_consumed_input_index,
-                "outputs": self.outputs,
-            },
+            attributes,
             {"variables": VariablesRegistry(self.variables).to_dict()},
             {"currentState": self.current_state.id},
         )

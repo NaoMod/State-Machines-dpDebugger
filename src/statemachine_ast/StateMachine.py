@@ -166,7 +166,6 @@ class Transition(ASTElement):
         source (State): source state of the transition.
         target (State): target state of the transition.
         input (str): input required to fire the transition.
-        output (str): output produced when firing the transition.
     """
 
     def __init__(
@@ -174,7 +173,6 @@ class Transition(ASTElement):
         source: State,
         target: State,
         input: str | None = None,
-        output: str | None = None,
         assignments: list[Assignment] | None = None,
         location: Location | None = None,
         step_location: Location | None = None,
@@ -183,7 +181,6 @@ class Transition(ASTElement):
         self.source = source
         self.target = target
         self.input = input
-        self.output = output
         self.assignments = assignments
 
     def to_dict(self) -> dict:
@@ -198,7 +195,7 @@ class Transition(ASTElement):
             children["assignments"] = [a.to_dict() for a in self.assignments]
 
         return super().construct_dict(
-            {"input": self.input, "ouptut": self.output},
+            {"input": self.input},
             {**children},
             {**refs},
         )
