@@ -241,9 +241,11 @@ class BinaryExpression(Expression):
 @dataclass
 class ParenthesizedExpression(Expression):
     contained_expression: Expression
+    sign: Sign | None = None
 
     def value(self) -> str:
-        return f"({self.contained_expression.value()})"
+        sign_value: str = "" if self.sign is None else self.sign
+        return f"{sign_value}({self.contained_expression.value()})"
 
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_parenthesized_expression(self)

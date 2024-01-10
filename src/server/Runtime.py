@@ -196,23 +196,22 @@ class ExpressionEvaluator:
     def evaluate_parenthesized_expression(
         self, expression: stateMachineModule.ParenthesizedExpression
     ) -> float:
-        return expression.contained_expression.accept(self)
+        unsigned_result: int = expression.contained_expression.accept(self)
+        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
 
     def evaluate_variable_atomic_expression(
         self, expression: stateMachineModule.VariableAtomicExpression
     ) -> float:
-        if expression.sign is stateMachineModule.Sign.MINUS:
-            return -self.variables[expression.variable]
-
-        return self.variables[expression.variable]
+        unsigned_result: int = self.variables[expression.variable]
+        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
 
     def evaluate_number_atomic_expression(
         self, expression: stateMachineModule.NumberAtomicExpression
     ) -> float:
-        if expression.sign is stateMachineModule.Sign.MINUS:
-            return -expression.number
+        unsigned_result: int = expression.number
+        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
 
-        return expression.number
+    
 
 
 @dataclass
