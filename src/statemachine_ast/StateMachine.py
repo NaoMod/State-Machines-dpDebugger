@@ -18,7 +18,7 @@ class StateMachine(ASTElement):
     """
 
     def __init__(self, name: str, location: Location | None = None) -> None:
-        super().__init__("stateMachine.stateMachine", location=location)
+        super().__init__(["StateMachine"], location=location)
         self.name = name
         self.initial_state: InitialState | None = None
         self.states: list[State] = []
@@ -53,8 +53,10 @@ class State(ASTElement):
         parent_state: State | None = None,
         is_final: bool = False,
         location: Location | None = None,
+        additional_types: list[str] | None = None
     ):
-        super().__init__("stateMachine.state", location=location)
+        types = ["State"] if additional_types is None else ["State"].extend(additional_types)
+        super().__init__(types, location=location)
         self.name: str | None = name
         self.parent_state: State | None = parent_state
         self.is_final = is_final
@@ -106,7 +108,7 @@ class SimpleState(State):
         is_final: bool = False,
         location: Location | None = None,
     ):
-        super().__init__(name, parent_state, is_final, location)
+        super().__init__(name, parent_state, is_final, location, ["SimpleState"])
 
     def get_nested_initial_state(self) -> State:
         return super().get_nested_initial_state()
@@ -123,7 +125,7 @@ class CompositeState(State):
     """
 
     def __init__(self, name: str, location: Location | None = None):
-        super().__init__(name, None, False, location)
+        super().__init__(name, None, False, location, ["CompositeState"])
         self.initial_state: InitialState | None = None
 
     def get_nested_initial_state(self) -> State:
@@ -177,7 +179,7 @@ class Transition(ASTElement):
         location: Location | None = None,
         step_location: Location | None = None,
     ):
-        super().__init__("stateMachine.transition", location=location, step_location=step_location)
+        super().__init__(["Transition"], location=location, step_location=step_location)
         self.source = source
         self.target = target
         self.input = input
@@ -205,7 +207,7 @@ class Assignment(ASTElement):
     def __init__(
         self, variable: str, expression: Expression, location: Location | None = None
     ):
-        super().__init__("stateMachine.assignment", location=location)
+        super().__init__(["Assignement"], location=location)
         self.variable = variable
         self.expression = expression
 

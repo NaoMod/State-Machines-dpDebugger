@@ -120,38 +120,40 @@ class Runtime:
         )
         return possibleSourceStates[stateIndex].outgoing_transitions[transitionIndex]
 
+    # TODO: reimplement breakpoint checking
     def check_breakpoint(
-        self, type: str, element_id: str, step_id: str | None = None
+        self, type: str, step_id: str, bindings: dict
     ) -> lrpModule.CheckBreakpointResponse:
-        if type not in [x.id for x in breakpoints]:
-            raise UnknownBreakpointTypeError(type)
+        pass
+        # if type not in [x.id for x in breakpoints]:
+        #     raise UnknownBreakpointTypeError(type)
 
-        if step_id is None:
-            if self.ongoing_composite_step is None:
-                next_transition: stateMachineModule.Transition | None = (
-                    self.find_next_transition()
-                )
-                selected_step: Step | None = (
-                    TransitionStep(next_transition)
-                    if next_transition is not None
-                    else None
-                )
-            else:
-                selected_step: Step | None = self.ongoing_composite_step
-        else:
-            assert self.available_steps is not None, "No steps to compute from."
-            assert step_id in self.available_steps, f"No step with id {step_id}."
-            selected_step: Step | None = self.available_steps[step_id]
+        # if step_id is None:
+        #     if self.ongoing_composite_step is None:
+        #         next_transition: stateMachineModule.Transition | None = (
+        #             self.find_next_transition()
+        #         )
+        #         selected_step: Step | None = (
+        #             TransitionStep(next_transition)
+        #             if next_transition is not None
+        #             else None
+        #         )
+        #     else:
+        #         selected_step: Step | None = self.ongoing_composite_step
+        # else:
+        #     assert self.available_steps is not None, "No steps to compute from."
+        #     assert step_id in self.available_steps, f"No step with id {step_id}."
+        #     selected_step: Step | None = self.available_steps[step_id]
 
-        if selected_step is None:
-            return lrpModule.CheckBreakpointResponse(False)
+        # if selected_step is None:
+        #     return lrpModule.CheckBreakpointResponse(False)
 
-        message: str | None = selected_step.get_next_atomic_step().check_breakpoint(
-            type, element_id, self
-        )
-        is_activated = message is not None
+        # message: str | None = selected_step.get_next_atomic_step().check_breakpoint(
+        #     type, element_id, self
+        # )
+        # is_activated = message is not None
 
-        return lrpModule.CheckBreakpointResponse(is_activated, message)
+        # return lrpModule.CheckBreakpointResponse(is_activated, message)
 
     def _find_possible_transitions(self) -> list[stateMachineModule.Transition]:
         available_transitions: list[stateMachineModule.Transition] = []
@@ -197,21 +199,31 @@ class ExpressionEvaluator:
         self, expression: stateMachineModule.ParenthesizedExpression
     ) -> float:
         unsigned_result: int = expression.contained_expression.accept(self)
-        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
+        return (
+            -unsigned_result
+            if expression.sign is stateMachineModule.Sign.MINUS
+            else unsigned_result
+        )
 
     def evaluate_variable_atomic_expression(
         self, expression: stateMachineModule.VariableAtomicExpression
     ) -> float:
         unsigned_result: int = self.variables[expression.variable]
-        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
+        return (
+            -unsigned_result
+            if expression.sign is stateMachineModule.Sign.MINUS
+            else unsigned_result
+        )
 
     def evaluate_number_atomic_expression(
         self, expression: stateMachineModule.NumberAtomicExpression
     ) -> float:
         unsigned_result: int = expression.number
-        return -unsigned_result if expression.sign is stateMachineModule.Sign.MINUS else unsigned_result
-
-    
+        return (
+            -unsigned_result
+            if expression.sign is stateMachineModule.Sign.MINUS
+            else unsigned_result
+        )
 
 
 @dataclass
@@ -357,9 +369,7 @@ class TransitionStep(CompositeStep):
             ]
 
         if not self.state_changed:
-            return [
-                StateChangeStep(self.transition.target, self)
-            ]
+            return [StateChangeStep(self.transition.target, self)]
 
         assert False, "Step already completed."
 
@@ -428,9 +438,7 @@ class StateChangeStep(AtomicStep):
         target: stateMachineModule.State,
         parent_step: TransitionStep,
     ) -> None:
-        super().__init__(
-            f"New state: {target.name}", parent_step=parent_step
-        )
+        super().__init__(f"New state: {target.name}", parent_step=parent_step)
         self.target = target
 
     def execute(self, runtime: Runtime) -> None:

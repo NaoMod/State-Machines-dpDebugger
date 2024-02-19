@@ -7,23 +7,105 @@ from typing import Any
 
 from server.Utils import generate_uuid
 
-"""---------------- Base protocol ----------------"""
-
 
 @dataclass
 class Arguments:
     sourceFile: str
 
 
+class Response:
+    @abstractmethod
+    def to_dict(self) -> dict:
+        pass
+
+
+@dataclass
+class ParseArguments(Arguments):
+    pass
+
+
+@dataclass
+class ParseResponse(Response):
+    astRoot: ModelElement
+
+    def to_dict(self) -> dict:
+        return {"astRoot": self.astRoot.to_dict()}
+
+
+@dataclass
+class InitializeExecutionArguments(Arguments):
+    bindings: dict
+
+
+class InitializeExecutionResponse(Response):
+    def to_dict(self) -> dict:
+        return {}
+
+
+@dataclass
+class GetBreakpointTypesResponse(Response):
+    breakpointTypes: list[BreakpointType] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {"breakpointTypes": [bt.to_dict() for bt in self.breakpointTypes]}
+
+
+@dataclass
+class ExecuteAtomicStepArguments(Arguments):
+    stepId: str
+
+
+@dataclass
+class ExecuteAtomicStepResponse(Response):
+    completedSteps: list[str]
+
+    def to_dict(self) -> dict:
+        return self.__dict__
+
+
+@dataclass
+class GetRuntimeStateArguments(Arguments):
+    pass
+
+
+@dataclass
+class GetRuntimeStateResponse(Response):
+    runtimeStateRoot: ModelElement
+
+    def to_dict(self) -> dict:
+        return {"runtimeStateRoot": self.runtimeStateRoot.to_dict()}
+
+
+@dataclass
+class CheckBreakpointArguments(Arguments):
+    typeId: str
+    stepId: str
+    bindings: dict
+
+
+@dataclass
+class CheckBreakpointResponse(Response):
+    isActivated: bool
+    message: str | None = None
+
+    def to_dict(self) -> dict:
+        res: dict[str, Any] = {"isActivated": self.isActivated}
+
+        if self.isActivated and self.message is not None:
+            res["message"] = self.message
+
+        return res
+
+
 @dataclass
 class ModelElement:
-    type: str
+    types: list[str]
     id: str = field(default_factory=generate_uuid)
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return {
             "id": self.id,
-            "type": self.type,
+            "types": self.types,
             "attributes": attributes,
             "children": children,
             "refs": refs,
@@ -37,7 +119,6 @@ class ModelElement:
 @dataclass
 class ASTElement(ModelElement):
     location: Location | None = None
-    step_location: Location | None = None
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
         return (
@@ -66,49 +147,11 @@ class Location:
 
 
 @dataclass
-class ParseResponse:
-    astRoot: ModelElement
-
-    def to_dict(self) -> dict:
-        return {"astRoot": self.astRoot.to_dict()}
-
-
-@dataclass
-class InitResponse:
-    isExecutionDone: bool = False
-
-    def to_dict(self) -> dict:
-        return self.__dict__
-
-
-@dataclass
-class GetBreakpointTypesResponse:
-    breakpointTypes: list[BreakpointType] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        return {"breakpointTypes": [bt.to_dict() for bt in self.breakpointTypes]}
-
-
-@dataclass
-class StepArguments(Arguments):
-    stepId: str | None = None
-
-
-@dataclass
-class StepResponse:
-    completedSteps: list[str]
-    isExecutionDone: bool = False
-
-    def to_dict(self) -> dict:
-        return self.__dict__
-
-
-@dataclass
 class BreakpointType:
     id: str
     name: str
+    description: str
     parameters: list[BreakpointParameter]
-    description: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -122,12 +165,17 @@ class BreakpointType:
 @dataclass
 class BreakpointParameter:
     name: str
+    type: BreakpointParameterType
+    isMultivalued: bool = False
     primitiveType: PrimitiveType | None = None
     objectType: str | None = None
-    isMultivalued: bool = False
 
     def to_dict(self) -> dict:
-        res = {"name": self.name, "isMultivalued": self.isMultivalued}
+        res = {
+            "name": self.name,
+            "isMultivalued": self.isMultivalued,
+            "type": self.type.value,
+        }
 
         if self.primitiveType is not None:
             res = {**res, "primitiveType": self.primitiveType.value}
@@ -138,6 +186,11 @@ class BreakpointParameter:
         return res
 
 
+class BreakpointParameterType(Enum):
+    PRIMITIVE = "primitive"
+    OBJECT = "object"
+
+
 class PrimitiveType(Enum):
     BOOLEAN = "boolean"
     STRING = "string"
@@ -145,41 +198,12 @@ class PrimitiveType(Enum):
 
 
 @dataclass
-class GetRuntimeStateResponse:
-    runtimeStateRoot: ModelElement
-
-    def to_dict(self) -> dict:
-        return {"runtimeStateRoot": self.runtimeStateRoot.to_dict()}
-
-
-@dataclass
-class CheckBreakpointArguments(Arguments):
-    typeId: str
-    elementId: str
-    stepId: str | None = None
-
-
-@dataclass
-class CheckBreakpointResponse:
-    isActivated: bool
-    message: str | None = None
-
-    def to_dict(self) -> dict:
-        res: dict[str, Any] = {"isActivated": self.isActivated}
-
-        if self.message is not None:
-            res["message"] = self.message
-
-        return res
-
-
-@dataclass
 class GetAvailableStepsArguments(Arguments):
-    compositeStepId: str | None = None
+    pass
 
 
 @dataclass
-class GetAvailableStepsResponse:
+class GetAvailableStepsResponse(Response):
     availableSteps: list[Step]
     parentStepId: str | None = None
 
@@ -192,6 +216,16 @@ class GetAvailableStepsResponse:
             result["parentStepId"] = self.parentStepId
 
         return result
+
+
+@dataclass
+class EnterCompositeStepArguments(Arguments):
+    stepId: str
+
+
+class EnterCompositeStepResponse(Response):
+    def to_dict(self) -> dict:
+        return {}
 
 
 @dataclass
@@ -220,7 +254,7 @@ class GetStepLocationArguments(Arguments):
 
 
 @dataclass
-class GetStepLocationResponse:
+class GetStepLocationResponse(Response):
     location: Location | None = None
 
     def to_dict(self) -> dict:
@@ -230,19 +264,3 @@ class GetStepLocationResponse:
             res["location"] = self.location.to_dict()
 
         return res
-
-
-"""---------------- Domain-specific ----------------"""
-
-
-@dataclass
-class InitArguments:
-    """Arguments required to start an execution.
-
-    Attributes:
-        source_file (str): source file for which to initialize the execution.
-        inputs (list[str]): ordered symbols given as inputs for the execution.
-    """
-
-    source_file: str
-    inputs: list[str] | None = None
