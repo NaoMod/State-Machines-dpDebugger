@@ -58,7 +58,7 @@ class Runtime:
         # Only compute once for the same runtime state
         if self.available_steps is not None:
             return self.available_steps
-        
+
         if self.current_state.is_final:
             return {}
 
@@ -84,40 +84,25 @@ class Runtime:
             }
             return self.available_steps
 
-    # TODO: reimplement breakpoint checking
     def check_breakpoint(
-        self, type: str, step_id: str, bindings: dict
+        self, type_id: str, step_id: str, bindings: dict
     ) -> lrpModule.CheckBreakpointResponse:
-        pass
-        # if type not in [x.id for x in breakpoints]:
-        #     raise UnknownBreakpointTypeError(type)
+        if type_id not in [x.id for x in breakpoints]:
+            raise UnknownBreakpointTypeError(type_id)
 
-        # if step_id is None:
-        #     if self.ongoing_composite_step is None:
-        #         next_transition: stateMachineModule.Transition | None = (
-        #             self.find_next_transition()
-        #         )
-        #         selected_step: Step | None = (
-        #             TransitionStep(next_transition)
-        #             if next_transition is not None
-        #             else None
-        #         )
-        #     else:
-        #         selected_step: Step | None = self.ongoing_composite_step
-        # else:
-        #     assert self.available_steps is not None, "No steps to compute from."
-        #     assert step_id in self.available_steps, f"No step with id {step_id}."
-        #     selected_step: Step | None = self.available_steps[step_id]
+        assert self.available_steps is not None, "No steps to compute from."
+        assert step_id in self.available_steps, f"No step with id {step_id}."
+        selected_step: Step = self.available_steps[step_id]
 
-        # if selected_step is None:
-        #     return lrpModule.CheckBreakpointResponse(False)
+        message: str | None = self._get_next_atomic_step(
+            selected_step
+        ).check_breakpoint(type_id, bindings)
+        is_activated = message is not None
 
-        # message: str | None = selected_step.get_next_atomic_step().check_breakpoint(
-        #     type, element_id, self
-        # )
-        # is_activated = message is not None
+        return lrpModule.CheckBreakpointResponse(is_activated, message)
 
-        # return lrpModule.CheckBreakpointResponse(is_activated, message)
+    def evaluate(self, expression: stateMachineModule.Expression) -> float:
+        return self.evaluator.evaluate(expression)
 
     def _find_possible_events(self) -> list[str]:
         available_transitions: list[
@@ -145,8 +130,15 @@ class Runtime:
 
         return available_transitions
 
-    def evaluate(self, expression: stateMachineModule.Expression) -> float:
-        return self.evaluator.evaluate(expression)
+    def _get_next_atomic_step(self, step: Step) -> AtomicStep:
+        current_step: Step = step
+        while current_step.is_composite:
+            contained_steps: list[Step] = current_step.get_contained_steps()
+            assert len(contained_steps) > 0, "Composite step does not contain any atomic step."
+            assert len(contained_steps) < 2, "Composite step contains multiple steps."
+            current_step = contained_steps[0]
+
+        return current_step
 
 
 @dataclass

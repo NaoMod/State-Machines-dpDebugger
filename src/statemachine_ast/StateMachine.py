@@ -234,7 +234,7 @@ class Assignment(ASTElement):
         location: Location | None = None,
         parser_ctx: ParserRuleContext | None = None,
     ):
-        super().__init__(["Assignement"], location=location, parser_ctx=parser_ctx)
+        super().__init__(["Assignment"], location=location, parser_ctx=parser_ctx)
         self.variable = variable
         self.expression = expression
 
