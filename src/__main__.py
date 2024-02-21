@@ -3,8 +3,7 @@ import argparse
 import bsonrpc
 import gevent.socket as gsocket
 from bsonrpc import JSONRpc, ThreadingModel
-
-from server.ServiceHandler import ServiceHandler
+from server.ServerFacade import ServerFacade
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -22,8 +21,8 @@ if __name__ == '__main__':
 
     # Start JSON-RPC server
     print("Server running at port " + str(args.port) + "...")
-    service_handler: ServiceHandler = ServiceHandler()
+    server_facade: ServerFacade = ServerFacade()
     while True:
         s, _ = ss.accept()
-        JSONRpc(s, service_handler, framing_cls=bsonrpc.JSONFramingNone,
+        JSONRpc(s, server_facade, framing_cls=bsonrpc.JSONFramingNone,
                 threading_model=ThreadingModel.GEVENT, concurrent_request_handling=ThreadingModel.GEVENT)

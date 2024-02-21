@@ -101,9 +101,10 @@ class CheckBreakpointResponse(Response):
 class ModelElement:
     types: list[str]
     id: str = field(default_factory=generate_uuid)
+    location: Location | None = None
 
     def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
-        return {
+        res: dict = {
             "id": self.id,
             "types": self.types,
             "attributes": attributes,
@@ -111,24 +112,10 @@ class ModelElement:
             "refs": refs,
         }
 
-    @abstractmethod
-    def to_dict(self) -> dict:
-        pass
+        if self.location is not None:
+            res["location"] = self.location.to_dict()
 
-
-@dataclass
-class ASTElement(ModelElement):
-    location: Location | None = None
-
-    def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
-        return (
-            super().construct_dict(attributes, children, refs)
-            if self.location is None
-            else {
-                **super().construct_dict(attributes, children, refs),
-                "location": self.location.to_dict(),
-            }
-        )
+        return res
 
     @abstractmethod
     def to_dict(self) -> dict:

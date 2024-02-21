@@ -1,36 +1,28 @@
-from server.LRP import BreakpointParameter, BreakpointType
+from server.LRP import BreakpointParameter, BreakpointParameterType, BreakpointType
 
 breakpoints: list[BreakpointType] = [
     BreakpointType(
-        "stateMachine.stateReached",
+        "stateReached",
         "State Reached",
-        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
         "Breaks when a specific state is about to be reached.",
+        [BreakpointParameter("s", BreakpointParameterType.OBJECT, objectType="State")],
     ),
     BreakpointType(
-        "stateMachine.stateExited",
+        "stateExited",
         "State Exited",
-        [BreakpointParameter("targetElementType", objectType="stateMachine.state")],
-        description="Breaks when a specific state is about to be exited.",
+        "Breaks when a specific state is about to be exited.",
+        [BreakpointParameter("s", BreakpointParameterType.OBJECT, objectType="State")],
     ),
     BreakpointType(
-        "stateMachine.transitionFired",
+        "transitionFired",
         "Transition Fired",
-        [
-            BreakpointParameter(
-                "targetElementType", objectType="stateMachine.transition"
-            )
-        ],
         "Breaks when a specific transition is about to be fired.",
+        [BreakpointParameter("t", BreakpointParameterType.OBJECT, objectType="Transition")],
     ),
     BreakpointType(
         "stateMachine.assignmentEvaluated",
         "Assignment Evaluated",
-        [
-            BreakpointParameter(
-                "targetElementType", objectType="stateMachine.assignment"
-            )
-        ],
-        description="Breaks when a specific assignment is about to be evaluated.",
+        "Breaks when a specific assignment is about to be evaluated.",
+        [BreakpointParameter("a", BreakpointParameterType.OBJECT, objectType="Assignment")],
     ),
 ]

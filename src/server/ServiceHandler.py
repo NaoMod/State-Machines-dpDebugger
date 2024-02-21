@@ -31,22 +31,25 @@ from statemachine_ast.StateMachine import StateMachine
 
 
 class ServiceHandler:
-    """Exposes the services related to execution semantics.
+    """Implements LRP services.
 
     Attributes:
-        runtimes (dict[str, Runtime]): map of source files to their runtime
+        runtimes (dict[str, Runtime]): map of source files to their runtime.
         registry (ASTRegistry): registry of all already parsed ASTs.
     """
 
-    def __init__(self, registry: astRegistryModule.ASTRegistry) -> None:
+    def __init__(self) -> None:
         self.runtimes: dict[str, Runtime] = {}
-        self.registry: astRegistryModule.ASTRegistry = registry
+        self.registry: astRegistryModule.ASTRegistry = astRegistryModule.ASTRegistry()
 
     def parse(self, args: ParseArguments) -> ParseResponse:
         """Parses a file and stores the generated StateMachine in self.registry.
 
         Args:
-            file (str): URI of the file to parse.
+            args (ParseArguments): arguments of the request.
+
+        Returns:
+            ParseResponse: response to the request.
         """
 
         text_input = FileStream(args.sourceFile)
@@ -68,10 +71,10 @@ class ServiceHandler:
         The AST for the given source file must have been previously constructed.
 
         Args:
-            args (InitArguments): arguments required to start an execution.
+            args (InitializeExecutionArguments): arguments of the request.
 
         Returns:
-            InitResponse: response with the result of the initialization.
+            InitializeExecutionResponse: response to the request.
         """
 
         self.runtimes[args.sourceFile] = Runtime(
@@ -86,13 +89,13 @@ class ServiceHandler:
         """Returns the current runtime state for a given source file.
 
         Args:
-            source_file (str): source file for which to return the runtime state
+            args (GetRuntimeStateArguments): arguments of the request.
 
         Raises:
-            ExecutionAlreadyDoneError: raised if the execution is done.
+            ValueError: raised if no runtime exists for the given source file.
 
         Returns:
-            RuntimeState: current runtime state for the source file.
+            GetRuntimeStateResponse: response to the request.
         """
 
         self._check_runtime_exists(args.sourceFile)
@@ -100,6 +103,12 @@ class ServiceHandler:
         return GetRuntimeStateResponse(RuntimeState(self.runtimes[args.sourceFile]))
 
     def get_breakpoint_types(self) -> GetBreakpointTypesResponse:
+        """Returns the breakpoint types exposed by the language runtime.
+
+        Returns:
+            GetBreakpointTypesResponse: response to the request.
+        """
+
         return GetBreakpointTypesResponse(breakpoints)
 
     def check_breakpoint(
@@ -108,11 +117,15 @@ class ServiceHandler:
         """Checks whether a breakpoint is activated.
 
         Args:
-            args (CheckBreakpointArgs): arguments required to check a breakpoint.
+            args (CheckBreakpointArgs): arguments of the request.
+
+        Raises:
+            ValueError: raised if no runtime exists for the given source file.
 
         Returns:
-            CheckBreakpointResponse: response with the result of the breakpoint checking.
+            CheckBreakpointResponse: response to the request.
         """
+
         self._check_runtime_exists(args.sourceFile)
 
         return self.runtimes[args.sourceFile].check_breakpoint(
@@ -122,12 +135,23 @@ class ServiceHandler:
     def get_available_steps(
         self, args: GetAvailableStepsArguments
     ) -> GetAvailableStepsResponse:
+        """Returns the available steps from the current runtime state.
+        Influenced by calls to enterCompositeStep and executeAtomicStep.
+
+        Args:
+            args (GetAvailableStepsArguments): arguments of the request.
+
+        Raises:
+            ValueError: raised if no runtime exists for the given source file.
+
+        Returns:
+            GetAvailableStepsResponse: response to the request.
+        """
+
         self._check_runtime_exists(args.sourceFile)
 
         runtime = self.runtimes[args.sourceFile]
-        available_steps = list(
-            runtime.compute_available_steps(args.sourceFile).values()
-        )
+        available_steps = list(runtime.compute_available_steps().values())
         parent_step = (
             available_steps[0].parent_step if len(available_steps) > 0 else None
         )
@@ -137,26 +161,45 @@ class ServiceHandler:
             parent_step.id if parent_step is not None else None,
         )
 
-    # TODO: implement enter composite step
     def enter_composite_step(
         self, args: EnterCompositeStepArguments
     ) -> EnterCompositeStepResponse:
-        pass
+        """Enters a composite step and render available the steps it contains.
+        Steps are listed through getAvailableSteps.
+
+        Args:
+            args (EnterCompositeStepArguments): arguments of the request.
+
+        Raises:
+            ValueError: raised if no runtime exists for the given source file.
+
+        Returns:
+            EnterCompositeStepResponse: response to the request.
+        """
+
+        self._check_runtime_exists(args.sourceFile)
+        self.runtimes[args.sourceFile].enter_composite_step(args.stepId)
+
+        return EnterCompositeStepResponse()
 
     def execute_atomic_step(
         self, args: ExecuteAtomicStepArguments
     ) -> ExecuteAtomicStepResponse:
-        """Performs a next step action in the runtime associated to a given source file.
+        """Performs a single atomic step in the runtime associated to a given source file.
+        Steps are listed through getAvailableSteps.
 
         Args:
-            source_file (str): source file for which to initialize the execution.
+            args (ExecuteAtomicStepArguments): arguments of the request.
+
+        Raises:
+            ValueError: raised if no runtime exists for the given source file.
 
         Returns:
-            StepResponse: response with the result of the performed step.
+            ExecuteAtomicStepResponse: response to the request.
         """
 
         self._check_runtime_exists(args.sourceFile)
-        executed_step = self.runtimes[args.sourceFile].execute_step(args.stepId)
+        executed_step = self.runtimes[args.sourceFile].execute_atomic_step(args.stepId)
 
         return ExecuteAtomicStepResponse(
             [x.id for x in executed_step.get_completed_steps()]
@@ -165,6 +208,19 @@ class ServiceHandler:
     def get_step_location(
         self, args: GetStepLocationArguments
     ) -> GetStepLocationResponse:
+        """Returns the location of a step.
+        Steps are listed through getAvailableSteps.
+
+        Args:
+            args (GetStepLocationArguments): arguments of the request.
+
+        Raises:
+            ValueError: raised if no runtime exists for the given source file.
+
+        Returns:
+            GetStepLocationResponse: response to the request.
+        """
+
         self._check_runtime_exists(args.sourceFile)
         step = self.runtimes[args.sourceFile].available_steps.get(args.stepId)
         assert step is not None, f"No step with id {args.stepId}."
@@ -178,7 +234,7 @@ class ServiceHandler:
             source_file (str): source file for which to search for a runtime.
 
         Raises:
-            ValueError: raised if no runtime is found.
+            ValueError: raised if no runtime exists for the given source file.
         """
 
         if self.runtimes[source_file] is None:

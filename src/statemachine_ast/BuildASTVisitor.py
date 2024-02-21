@@ -52,6 +52,7 @@ class BuildASTVisitor(StateMachineVisitor):
     # Visit a parse tree produced by StateMachineParser#statemachine.
     def visitStatemachine(self, ctx: StateMachineParser.StatemachineContext):
         state_machine: StateMachine = StateMachine(ctx.NAME().getText())
+        state_machine.parser_ctx = ctx
 
         # First pass to create empty states so references can be made easily
         empty_states_visitor: BasicBuildEmptyStatesVisitor = (
@@ -79,6 +80,7 @@ class BuildASTVisitor(StateMachineVisitor):
         state: CompositeState = self.state_registry.composite_states[
             ctx.NAME().getText()
         ]
+        state.parser_ctx = ctx
 
         state.initial_state = InitialState(
             self.state_registry.get(ctx.initial_state().target.text)
@@ -101,6 +103,7 @@ class BuildASTVisitor(StateMachineVisitor):
         self, ctx: StateMachineParser.Simple_stateContext
     ) -> SimpleState:
         state: SimpleState = self.state_registry.simple_states[ctx.NAME().getText()]
+        state.parser_ctx = ctx
         state.parent_state = self.current_state_parent
         self.current_transition_parent = state
 
@@ -125,13 +128,6 @@ class BuildASTVisitor(StateMachineVisitor):
             end_token.column + len(end_token.text),
         )
 
-        step_location: Location = Location(
-            start_token.line,
-            ctx.stop.line,
-            start_token.column + 1,
-            ctx.stop.column + len(ctx.stop.text) + 1,
-        )
-
         if ctx.target.text == "FINAL":
             return Transition(
                 self.current_transition_parent,
@@ -139,7 +135,7 @@ class BuildASTVisitor(StateMachineVisitor):
                 ctx.input_.text.strip("'"),
                 assignments,
                 location,
-                step_location,
+                ctx,
             )
         else:
             return Transition(
@@ -148,21 +144,18 @@ class BuildASTVisitor(StateMachineVisitor):
                 ctx.input_.text.strip("'"),
                 assignments,
                 location,
-                step_location,
+                ctx,
             )
 
     def visitSeparated_assignment(
         self, ctx: StateMachineParser.Separated_assignmentContext
     ) -> Assignment:
         assignment: Assignment = ctx.assignment().accept(self)
+        assignment.parser_ctx = ctx
         location: Location = Location(
             ctx.start.line, ctx.stop.line, ctx.start.column + 1, ctx.stop.column + 1
         )
         assignment.location = location
-        step_location: Location = Location(
-            location.line, location.endLine, location.column, location.endColumn + 1
-        )
-        assignment.step_location = step_location
 
         return assignment
 

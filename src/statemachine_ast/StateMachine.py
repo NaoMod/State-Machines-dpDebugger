@@ -4,8 +4,14 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 
-from server.LRP import ASTElement, Location
+from antlr4 import ParserRuleContext
+from server.LRP import Location, ModelElement
 from server.Runtime import ExpressionEvaluator
+
+
+@dataclass
+class ASTElement(ModelElement):
+    parser_ctx: ParserRuleContext | None = None
 
 
 class StateMachine(ASTElement):
@@ -17,8 +23,13 @@ class StateMachine(ASTElement):
         states (list[State]): list of the states directly contained in the state machine.
     """
 
-    def __init__(self, name: str, location: Location | None = None) -> None:
-        super().__init__(["StateMachine"], location=location)
+    def __init__(
+        self,
+        name: str,
+        location: Location | None = None,
+        parser_ctx: ParserRuleContext | None = None,
+    ) -> None:
+        super().__init__(["StateMachine"], location=location, parser_ctx=parser_ctx)
         self.name = name
         self.initial_state: InitialState | None = None
         self.states: list[State] = []
@@ -53,10 +64,14 @@ class State(ASTElement):
         parent_state: State | None = None,
         is_final: bool = False,
         location: Location | None = None,
-        additional_types: list[str] | None = None
+        additional_types: list[str] | None = None,
+        parser_ctx: ParserRuleContext | None = None,
     ):
-        types = ["State"] if additional_types is None else ["State"].extend(additional_types)
-        super().__init__(types, location=location)
+        types = ["State"]
+        if additional_types is not None:
+            types.extend(additional_types)
+        super().__init__(types, location=location, parser_ctx=parser_ctx)
+
         self.name: str | None = name
         self.parent_state: State | None = parent_state
         self.is_final = is_final
@@ -107,8 +122,11 @@ class SimpleState(State):
         parent_state: State | None = None,
         is_final: bool = False,
         location: Location | None = None,
+        parser_ctx: ParserRuleContext | None = None,
     ):
-        super().__init__(name, parent_state, is_final, location, ["SimpleState"])
+        super().__init__(
+            name, parent_state, is_final, location, ["SimpleState"], parser_ctx
+        )
 
     def get_nested_initial_state(self) -> State:
         return super().get_nested_initial_state()
@@ -124,8 +142,13 @@ class CompositeState(State):
         initial_state (InitialState): initial state of the composite state.
     """
 
-    def __init__(self, name: str, location: Location | None = None):
-        super().__init__(name, None, False, location, ["CompositeState"])
+    def __init__(
+        self,
+        name: str,
+        location: Location | None = None,
+        parser_ctx: ParserRuleContext | None = None,
+    ):
+        super().__init__(name, None, False, location, ["CompositeState"], parser_ctx)
         self.initial_state: InitialState | None = None
 
     def get_nested_initial_state(self) -> State:
@@ -167,22 +190,22 @@ class Transition(ASTElement):
     Attributes:
         source (State): source state of the transition.
         target (State): target state of the transition.
-        input (str): input required to fire the transition.
+        trigger (str): event required to fire the transition.
     """
 
     def __init__(
         self,
         source: State,
         target: State,
-        input: str | None = None,
+        trigger: str | None = None,
         assignments: list[Assignment] | None = None,
         location: Location | None = None,
-        step_location: Location | None = None,
+        parser_ctx: ParserRuleContext | None = None,
     ):
-        super().__init__(["Transition"], location=location, step_location=step_location)
+        super().__init__(["Transition"], location=location, parser_ctx=parser_ctx)
         self.source = source
         self.target = target
-        self.input = input
+        self.trigger = trigger
         self.assignments = assignments
 
     def to_dict(self) -> dict:
@@ -197,7 +220,7 @@ class Transition(ASTElement):
             children["assignments"] = [a.to_dict() for a in self.assignments]
 
         return super().construct_dict(
-            {"input": self.input},
+            {"trigger": self.trigger},
             {**children},
             {**refs},
         )
@@ -205,9 +228,13 @@ class Transition(ASTElement):
 
 class Assignment(ASTElement):
     def __init__(
-        self, variable: str, expression: Expression, location: Location | None = None
+        self,
+        variable: str,
+        expression: Expression,
+        location: Location | None = None,
+        parser_ctx: ParserRuleContext | None = None,
     ):
-        super().__init__(["Assignement"], location=location)
+        super().__init__(["Assignement"], location=location, parser_ctx=parser_ctx)
         self.variable = variable
         self.expression = expression
 
