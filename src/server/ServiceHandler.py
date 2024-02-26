@@ -61,6 +61,8 @@ class ServiceHandler:
         visitor = BuildASTVisitor()
         state_machine: StateMachine = visitor.visitStatemachine(tree)
         self.registry.set_ast(args.sourceFile, state_machine)
+        if args.sourceFile in self.runtimes:
+            del self.runtimes[args.sourceFile]
 
         return ParseResponse(state_machine)
 
