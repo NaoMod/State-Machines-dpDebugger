@@ -69,7 +69,7 @@ class Runtime:
             self.available_steps = {}
             if self.current_event is None:
                 for event in self._find_possible_events():
-                    step: PickEventStep = PickEventStep(event, self)
+                    step: ActivateEventStep = ActivateEventStep(event, self)
                     self.available_steps[step.id] = step
 
             else:
@@ -204,7 +204,7 @@ class Step:
     runtime: Runtime
     id: str = field(default_factory=generate_uuid)
     description: str | None = None
-    parent_step: CompositeStep | None = None
+    parent_step: Step | None = None
     location: lrpModule.Location | None = None
 
     @abstractmethod
@@ -329,11 +329,11 @@ class TransitionStep(CompositeStep):
 
     def get_contained_steps(self) -> list[Step]:
         if self.runtime.current_transition is None:
-            return [PickTransitionStep(self.transition, self, self.runtime)]
+            return [ActivateTransitionStep(self.transition, self, self.runtime)]
 
         if self.runtime.executed_assignments < len(self.transition.assignments):
             return [
-                AssignmentStep(
+                ExecuteAssignmentStep(
                     self.transition.assignments[self.runtime.executed_assignments],
                     self,
                     self.runtime,
@@ -346,12 +346,12 @@ class TransitionStep(CompositeStep):
         assert False, "Step already completed."
 
 
-class PickEventStep(AtomicStep):
+class ActivateEventStep(AtomicStep):
     def __init__(self, event: str, runtime: Runtime) -> None:
         super().__init__(
             event,
             runtime,
-            description="pickEvent",
+            description="activateEvent",
         )
         self.event = event
 
@@ -363,7 +363,7 @@ class PickEventStep(AtomicStep):
         return
 
 
-class PickTransitionStep(AtomicStep):
+class ActivateTransitionStep(AtomicStep):
     def __init__(
         self,
         transition: stateMachineModule.Transition,
@@ -383,7 +383,7 @@ class PickTransitionStep(AtomicStep):
         super().__init__(
             f"{transition.source.name} --'{transition.trigger}'--> {target}",
             runtime,
-            description="pickTransition",
+            description="activateTransition",
             parent_step=parent_step,
             location=step_location,
         )
@@ -402,7 +402,7 @@ class PickTransitionStep(AtomicStep):
             )
 
 
-class AssignmentStep(AtomicStep):
+class ExecuteAssignmentStep(AtomicStep):
     def __init__(
         self,
         assignment: stateMachineModule.Assignment,
