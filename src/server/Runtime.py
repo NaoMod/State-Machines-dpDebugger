@@ -39,13 +39,14 @@ class Runtime:
         assert self.available_steps is not None, "No steps to compute from."
         assert step_id in self.available_steps, f"No step with id {step_id}."
         selected_step: Step = self.available_steps[step_id]
+        assert not selected_step.is_completed(), "Step already completed."
 
         selected_step.execute()
         self.ongoing_composite_step = selected_step.find_ongoing_step()
         self.available_steps = None
         return selected_step
 
-    def enter_composite_step(self, step_id: str):
+    def enter_composite_step(self, step_id: str) -> None:
         assert self.available_steps is not None, "No steps to compute from."
         assert step_id in self.available_steps, f"No step with id {step_id}."
         selected_step: Step = self.available_steps[step_id]
@@ -60,7 +61,8 @@ class Runtime:
             return self.available_steps
 
         if self.current_state.is_final:
-            return {}
+            self.available_steps = {}
+            return self.available_steps
 
         # Top-level steps
         if self.ongoing_composite_step is None:
@@ -75,14 +77,13 @@ class Runtime:
                     step: TransitionStep = TransitionStep(transition, self)
                     self.available_steps[step.id] = step
 
-            return self.available_steps
-
         else:
             self.available_steps = {
                 step.id: step
                 for step in self.ongoing_composite_step.get_contained_steps()
             }
-            return self.available_steps
+
+        return self.available_steps
 
     def check_breakpoint(
         self, type_id: str, step_id: str, bindings: dict

@@ -224,6 +224,7 @@ class ServiceHandler:
         """
 
         self._check_runtime_exists(args.sourceFile)
+        assert self.runtimes[args.sourceFile].available_steps is not None, "No steps to compute from."
         step = self.runtimes[args.sourceFile].available_steps.get(args.stepId)
         assert step is not None, f"No step with id {args.stepId}."
 
