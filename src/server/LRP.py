@@ -195,14 +195,7 @@ class GetAvailableStepsResponse(Response):
     parentStepId: str | None = None
 
     def to_dict(self) -> dict:
-        result: dict = {
-            "availableSteps": [step.to_dict() for step in self.availableSteps]
-        }
-
-        if self.parentStepId is not None:
-            result["parentStepId"] = self.parentStepId
-
-        return result
+        return {"availableSteps": [step.to_dict() for step in self.availableSteps]}
 
 
 @dataclass

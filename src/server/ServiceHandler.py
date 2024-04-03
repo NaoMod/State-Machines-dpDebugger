@@ -154,13 +154,9 @@ class ServiceHandler:
 
         runtime = self.runtimes[args.sourceFile]
         available_steps = list(runtime.compute_available_steps().values())
-        parent_step = (
-            available_steps[0].parent_step if len(available_steps) > 0 else None
-        )
 
         return GetAvailableStepsResponse(
-            [step.to_LRP_step() for step in available_steps],
-            parent_step.id if parent_step is not None else None,
+            [step.to_LRP_step() for step in available_steps]
         )
 
     def enter_composite_step(
@@ -224,7 +220,9 @@ class ServiceHandler:
         """
 
         self._check_runtime_exists(args.sourceFile)
-        assert self.runtimes[args.sourceFile].available_steps is not None, "No steps to compute from."
+        assert (
+            self.runtimes[args.sourceFile].available_steps is not None
+        ), "No steps to compute from."
         step = self.runtimes[args.sourceFile].available_steps.get(args.stepId)
         assert step is not None, f"No step with id {args.stepId}."
 
