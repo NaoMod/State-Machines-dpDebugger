@@ -64,7 +64,7 @@ class ServiceHandler:
         if args.sourceFile in self.runtimes:
             del self.runtimes[args.sourceFile]
 
-        return ParseResponse(state_machine)
+        return ParseResponse(state_machine.to_model_element())
 
     def initialize_execution(
         self, args: InitializeExecutionArguments
@@ -102,7 +102,9 @@ class ServiceHandler:
 
         self._check_runtime_exists(args.sourceFile)
 
-        return GetRuntimeStateResponse(RuntimeState(self.runtimes[args.sourceFile]))
+        return GetRuntimeStateResponse(
+            RuntimeState(self.runtimes[args.sourceFile]).to_model_element()
+        )
 
     def get_breakpoint_types(self) -> GetBreakpointTypesResponse:
         """Returns the breakpoint types exposed by the language runtime.

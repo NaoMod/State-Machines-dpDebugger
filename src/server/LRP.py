@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-
-from server.Utils import generate_uuid
 
 
 @dataclass
@@ -21,10 +18,6 @@ class Arguments:
 
 class Response:
     """Response to an LRP request."""
-
-    @abstractmethod
-    def to_dict(self) -> dict:
-        pass
 
 
 @dataclass
@@ -48,9 +41,6 @@ class ParseResponse(Response):
 
     astRoot: ModelElement
 
-    def to_dict(self) -> dict:
-        return {"astRoot": self.astRoot.to_dict()}
-
 
 @dataclass
 class InitializeExecutionArguments(Arguments):
@@ -58,17 +48,16 @@ class InitializeExecutionArguments(Arguments):
 
     Attributes:
         sourceFile (str): source file targeted by the request.
-        bindings: (dict): arbitrary arguments necessary for the initialization of a runtime state.
+        bindings: (dict[str, Any]): arbitrary arguments necessary for the initialization of a runtime state.
     """
 
-    bindings: dict
+    bindings: dict[str, Any]
 
 
 class InitializeExecutionResponse(Response):
     """Response to the 'initializeExecution' LRP request."""
 
-    def to_dict(self) -> dict:
-        return {}
+    pass
 
 
 @dataclass
@@ -80,9 +69,6 @@ class GetBreakpointTypesResponse(Response):
     """
 
     breakpointTypes: list[BreakpointType] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        return {"breakpointTypes": [bt.to_dict() for bt in self.breakpointTypes]}
 
 
 @dataclass
@@ -107,9 +93,6 @@ class ExecuteAtomicStepResponse(Response):
 
     completedSteps: list[str]
 
-    def to_dict(self) -> dict:
-        return self.__dict__
-
 
 @dataclass
 class GetRuntimeStateArguments(Arguments):
@@ -132,9 +115,6 @@ class GetRuntimeStateResponse(Response):
 
     runtimeStateRoot: ModelElement
 
-    def to_dict(self) -> dict:
-        return {"runtimeStateRoot": self.runtimeStateRoot.to_dict()}
-
 
 @dataclass
 class CheckBreakpointArguments(Arguments):
@@ -144,12 +124,12 @@ class CheckBreakpointArguments(Arguments):
         sourceFile (str): source file targeted by the request.
         typeId (str): identifier of the breakpoint type.
         stepId (str): identifier of the step on which to check the breakpoint.
-        bindings (dict): arbitrary arguments required to check the breakpoint.
+        bindings ([str, Any]): arbitrary arguments required to check the breakpoint.
     """
 
     typeId: str
     stepId: str
-    bindings: dict
+    bindings: dict[str, Any]
 
 
 @dataclass
@@ -164,14 +144,6 @@ class CheckBreakpointResponse(Response):
     isActivated: bool
     message: str | None = None
 
-    def to_dict(self) -> dict:
-        res: dict[str, Any] = {"isActivated": self.isActivated}
-
-        if self.isActivated and self.message is not None:
-            res["message"] = self.message
-
-        return res
-
 
 @dataclass
 class ModelElement:
@@ -180,30 +152,18 @@ class ModelElement:
     Attributes:
         id (str): unique identifier of the element.
         types (list[str]): types of the element.
+        attributes (dict[str, Any]): attributes with primitive values.
+        children (dict[str, ModelElement] | list[ModelElement]): containment relations with other elements.
+        refs (dict[str, str | list[str]]): references to other elements.
         location (Location | None): location of the element in its original source file.
     """
 
+    id: str
     types: list[str]
-    id: str = field(default_factory=generate_uuid)
+    attributes: dict[str, Any]
+    children: dict[str, ModelElement | list[ModelElement]]
+    refs: dict[str, str | list[str]]
     location: Location | None = None
-
-    def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
-        res: dict = {
-            "id": self.id,
-            "types": self.types,
-            "attributes": attributes,
-            "children": children,
-            "refs": refs,
-        }
-
-        if self.location is not None:
-            res["location"] = self.location.to_dict()
-
-        return res
-
-    @abstractmethod
-    def to_dict(self) -> dict:
-        pass
 
 
 @dataclass
@@ -222,9 +182,6 @@ class Location:
     column: int
     endColumn: int
 
-    def to_dict(self) -> dict:
-        return self.__dict__
-
 
 @dataclass
 class BreakpointType:
@@ -241,14 +198,6 @@ class BreakpointType:
     name: str
     description: str
     parameters: list[BreakpointParameter]
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "parameters": [param.to_dict() for param in self.parameters],
-        }
 
 
 @dataclass
@@ -268,21 +217,6 @@ class BreakpointParameter:
     isMultivalued: bool = False
     primitiveType: PrimitiveType | None = None
     objectType: str | None = None
-
-    def to_dict(self) -> dict:
-        res = {
-            "name": self.name,
-            "isMultivalued": self.isMultivalued,
-            "type": self.type.value,
-        }
-
-        if self.primitiveType is not None:
-            res = {**res, "primitiveType": self.primitiveType.value}
-
-        if self.objectType is not None:
-            res = {**res, "objectType": self.objectType}
-
-        return res
 
 
 class BreakpointParameterType(Enum):
@@ -321,9 +255,6 @@ class GetAvailableStepsResponse(Response):
 
     availableSteps: list[Step]
 
-    def to_dict(self) -> dict:
-        return {"availableSteps": [step.to_dict() for step in self.availableSteps]}
-
 
 @dataclass
 class EnterCompositeStepArguments(Arguments):
@@ -340,8 +271,7 @@ class EnterCompositeStepArguments(Arguments):
 class EnterCompositeStepResponse(Response):
     """Response to the 'enterCompositeStep' LRP request."""
 
-    def to_dict(self) -> dict:
-        return {}
+    pass
 
 
 @dataclass
@@ -359,18 +289,6 @@ class Step:
     name: str
     isComposite: bool
     description: str | None = None
-
-    def to_dict(self) -> dict:
-        res: dict[str, Any] = {
-            "id": self.id,
-            "name": self.name,
-            "isComposite": self.isComposite,
-        }
-
-        if self.description is not None:
-            res["description"] = self.description
-
-        return res
 
 
 @dataclass
@@ -394,11 +312,3 @@ class GetStepLocationResponse(Response):
     """
 
     location: Location | None = None
-
-    def to_dict(self) -> dict:
-        res: dict[str, Any] = {}
-
-        if self.location is not None:
-            res["location"] = self.location.to_dict()
-
-        return res

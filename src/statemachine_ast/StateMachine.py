@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from antlr4 import ParserRuleContext
 from server.LRP import Location, ModelElement
 from server.Runtime import ExpressionEvaluator
+from server.Utils import generate_uuid
 
 
 @dataclass
-class ASTElement(ModelElement):
+class ASTElement:
+    types: list[str]
+    id: str = field(default_factory=generate_uuid)
+    location: Location | None = None
     parser_ctx: ParserRuleContext | None = None
+
+    @abstractmethod
+    def to_model_element(self) -> ModelElement:
+        pass
 
 
 class StateMachine(ASTElement):
@@ -34,10 +43,11 @@ class StateMachine(ASTElement):
         self.initial_state: InitialState | None = None
         self.states: list[State] = []
 
-    def to_dict(self) -> dict:
-        return super().construct_dict(
+    def to_model_element(self) -> ModelElement:
+        return to_model_element(
+            self,
             {"name": self.name},
-            {"states": [state.to_dict() for state in self.states]},
+            {"states": [state.to_model_element() for state in self.states]},
             {
                 "initialState": ""
                 if self.initial_state is None
@@ -89,7 +99,12 @@ class State(ASTElement):
         else:
             return self.parent_state.get_depth() + 1
 
-    def construct_dict(self, attributes: dict, children: dict, refs: dict) -> dict:
+    def to_model_element(
+        self,
+        attributes: dict[str, Any],
+        children: dict[str, ModelElement],
+        refs: dict[str, str],
+    ) -> ModelElement:
         transitions: list[Transition] = list(
             filter(
                 lambda transition: not transition.target.is_final,
@@ -102,11 +117,12 @@ class State(ASTElement):
             )
         )
 
-        return super().construct_dict(
+        return to_model_element(
+            self,
             {"name": self.name, **attributes},
             {
-                "transitions": [t.to_dict() for t in transitions],
-                "final transitions": [t.to_dict() for t in final_transitions],
+                "transitions": [t.to_model_element() for t in transitions],
+                "final transitions": [t.to_model_element() for t in final_transitions],
                 **children,
             },
             {**refs},
@@ -131,8 +147,8 @@ class SimpleState(State):
     def get_nested_initial_state(self) -> State:
         return super().get_nested_initial_state()
 
-    def to_dict(self) -> dict:
-        return super().construct_dict({}, {}, {})
+    def to_model_element(self) -> ModelElement:
+        return super().to_model_element({}, {}, {})
 
 
 class CompositeState(State):
@@ -157,13 +173,13 @@ class CompositeState(State):
 
         return self.initial_state.get_nested_initial_state()
 
-    def to_dict(self) -> dict:
+    def to_model_element(self) -> ModelElement:
         if self.initial_state is None:
             raise ValueError("No initial state.")
 
-        return super().construct_dict(
+        return super().to_model_element(
             {},
-            {"states": [state.to_dict() for state in self.states]},
+            {"states": [state.to_model_element() for state in self.states]},
             {"initialState": self.initial_state.target.id},
         )
 
@@ -208,7 +224,7 @@ class Transition(ASTElement):
         self.trigger = trigger
         self.assignments = assignments
 
-    def to_dict(self) -> dict:
+    def to_model_element(self) -> ModelElement:
         refs: dict = {}
 
         if not self.target.is_final:
@@ -217,9 +233,10 @@ class Transition(ASTElement):
         children = {}
 
         if len(self.assignments) > 0:
-            children["assignments"] = [a.to_dict() for a in self.assignments]
+            children["assignments"] = [a.to_model_element() for a in self.assignments]
 
-        return super().construct_dict(
+        return to_model_element(
+            self,
             {"trigger": self.trigger},
             {**children},
             {**refs},
@@ -238,9 +255,9 @@ class Assignment(ASTElement):
         self.variable = variable
         self.expression = expression
 
-    def to_dict(self) -> dict:
-        return super().construct_dict(
-            {"variable": self.variable, "value": self.expression.value()}, {}, {}
+    def to_model_element(self) -> ModelElement:
+        return to_model_element(
+            self, {"variable": self.variable, "value": self.expression.value()}, {}, {}
         )
 
 
@@ -317,3 +334,14 @@ class Operand(Enum):
 class Sign(Enum):
     PLUS = "+"
     MINUS = "-"
+
+
+def to_model_element(
+    element: ASTElement,
+    attributes: dict[str, Any],
+    children: dict[str, ModelElement],
+    refs: dict[str, str],
+) -> ModelElement:
+    return ModelElement(
+        element.id, element.types, attributes, children, refs, element.location
+    )

@@ -106,9 +106,9 @@ class Runtime:
         return self.evaluator.evaluate(expression)
 
     def _find_possible_events(self) -> list[str]:
-        available_transitions: list[
-            stateMachineModule.Transition
-        ] = self._find_possible_transitions()
+        available_transitions: list[stateMachineModule.Transition] = (
+            self._find_possible_transitions()
+        )
         events: set[str] = set()
 
         for t in available_transitions:
@@ -135,7 +135,9 @@ class Runtime:
         current_step: Step = step
         while current_step.is_composite:
             contained_steps: list[Step] = current_step.get_contained_steps()
-            assert len(contained_steps) > 0, "Composite step does not contain any atomic step."
+            assert (
+                len(contained_steps) > 0
+            ), "Composite step does not contain any atomic step."
             assert len(contained_steps) < 2, "Composite step contains multiple steps."
             current_step = contained_steps[0]
 
@@ -516,7 +518,7 @@ class StateChangeStep(AtomicStep):
         )
 
 
-class RuntimeState(lrpModule.ModelElement):
+class RuntimeState:
     """Represents the current state of a runtime.
     Contains the information passed to the debugger.
 
@@ -525,20 +527,21 @@ class RuntimeState(lrpModule.ModelElement):
     """
 
     def __init__(self, runtime: Runtime) -> None:
-        super().__init__(["RuntimeState"])
         self.current_state = runtime.current_state
         self.variables = runtime.variables
         self.current_event: str | None = runtime.current_event
 
-    def to_dict(self) -> dict:
+    def to_model_element(self) -> lrpModule.ModelElement:
         if self.current_state.is_final:
             attributes: dict = {"currentState": "FINAL"}
             if self.current_event:
                 attributes["currentEvent"] = self.current_event
 
-            return super().construct_dict(
+            return lrpModule.ModelElement(
+                generate_uuid(),
+                ["RuntimeState"],
                 attributes,
-                {"variables": VariablesRegistry(self.variables).to_dict()},
+                {"variables": VariablesRegistry(self.variables).to_model_element()},
                 {},
             )
 
@@ -546,17 +549,20 @@ class RuntimeState(lrpModule.ModelElement):
         if self.current_event:
             attributes["currentEvent"] = self.current_event
 
-        return super().construct_dict(
+        return lrpModule.ModelElement(
+            generate_uuid(),
+            ["RuntimeState"],
             attributes,
-            {"variables": VariablesRegistry(self.variables).to_dict()},
+            {"variables": VariablesRegistry(self.variables).to_model_element()},
             {"currentState": self.current_state.id},
         )
 
 
-class VariablesRegistry(lrpModule.ModelElement):
+class VariablesRegistry:
     def __init__(self, variables: dict[str, float]) -> None:
-        super().__init__(["VariablesRegistry"])
         self.variables = variables
 
-    def to_dict(self) -> dict:
-        return super().construct_dict(self.variables, {}, {})
+    def to_model_element(self) -> dict:
+        return lrpModule.ModelElement(
+            generate_uuid(), ["VariablesRegistry"], self.variables, {}, {}
+        )
