@@ -433,9 +433,9 @@ class ExecuteAssignmentStep(AtomicStep):
         self._is_completed = True
 
     def check_breakpoint(self, type: str, bindings: dict) -> str | None:
-        if type == "assignmentEvaluated":
+        if type == "assignmentExecuted":
             return (
-                f"Assignment {self.assignment.variable} = {self.assignment.expression.value()} is about to be evaluated."
+                f"Assignment {self.assignment.variable} = {self.assignment.expression.value()} is about to be executed."
                 if self.assignment.id == bindings["a"]
                 else None
             )

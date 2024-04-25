@@ -20,9 +20,9 @@ breakpoints: list[BreakpointType] = [
         [BreakpointParameter("t", BreakpointParameterType.OBJECT, objectType="Transition")],
     ),
     BreakpointType(
-        "assignmentEvaluated",
-        "Assignment Evaluated",
-        "Breaks when a specific assignment is about to be evaluated.",
+        "assignmentExecuted",
+        "Assignment Executed",
+        "Breaks when a specific assignment is about to be executed.",
         [BreakpointParameter("a", BreakpointParameterType.OBJECT, objectType="Assignment")],
     ),
 ]
