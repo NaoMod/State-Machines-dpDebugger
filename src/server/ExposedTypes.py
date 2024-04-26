@@ -4,25 +4,25 @@ breakpoints: list[BreakpointType] = [
     BreakpointType(
         "stateReached",
         "State Reached",
-        "Breaks when a specific state is about to be reached.",
         [BreakpointParameter("s", BreakpointParameterType.OBJECT, objectType="State")],
+        "Breaks when a specific state is about to be reached.",
     ),
     BreakpointType(
         "stateExited",
         "State Exited",
-        "Breaks when a specific state is about to be exited.",
         [BreakpointParameter("s", BreakpointParameterType.OBJECT, objectType="State")],
+        "Breaks when a specific state is about to be exited.",
     ),
     BreakpointType(
         "transitionFired",
         "Transition Fired",
-        "Breaks when a specific transition is about to be fired.",
         [BreakpointParameter("t", BreakpointParameterType.OBJECT, objectType="Transition")],
+        "Breaks when a specific transition is about to be fired.",
     ),
     BreakpointType(
         "assignmentExecuted",
         "Assignment Executed",
-        "Breaks when a specific assignment is about to be executed.",
         [BreakpointParameter("a", BreakpointParameterType.OBJECT, objectType="Assignment")],
+        "Breaks when a specific assignment is about to be executed.",
     ),
 ]

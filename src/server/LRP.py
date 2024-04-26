@@ -190,14 +190,14 @@ class BreakpointType:
     Attributes:
         id (str): unique identifier of the breakpoint type.
         name (str): human-readable name of the breakpoint type.
-        description (str): human-readable description of the breakpoint type.
         parameters (list[BreakpointParameter]): parameters needed to evaluate a breakpoint of this type.
+        description (str | None): human-readable description of the breakpoint type.
     """
 
     id: str
     name: str
-    description: str
     parameters: list[BreakpointParameter]
+    description: str | None = None
 
 
 @dataclass
