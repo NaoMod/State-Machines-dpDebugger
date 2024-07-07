@@ -126,6 +126,7 @@ class State(ASTElement):
                 **children,
             },
             {**refs},
+            self.name,
         )
 
 
@@ -223,6 +224,7 @@ class Transition(ASTElement):
         self.target = target
         self.trigger = trigger
         self.assignments = assignments
+        self.label = f"{source.name} -> {target.name}"
 
     def to_model_element(self) -> ModelElement:
         refs: dict = {}
@@ -236,10 +238,7 @@ class Transition(ASTElement):
             children["assignments"] = [a.to_model_element() for a in self.assignments]
 
         return to_model_element(
-            self,
-            {"trigger": self.trigger},
-            {**children},
-            {**refs},
+            self, {"trigger": self.trigger}, {**children}, {**refs}, self.label
         )
 
 
@@ -254,10 +253,15 @@ class Assignment(ASTElement):
         super().__init__(["Assignment"], location=location, parser_ctx=parser_ctx)
         self.variable = variable
         self.expression = expression
+        self.label = f"{variable} = {expression.value()}"
 
     def to_model_element(self) -> ModelElement:
         return to_model_element(
-            self, {"variable": self.variable, "value": self.expression.value()}, {}, {}
+            self,
+            {"variable": self.variable, "value": self.expression.value()},
+            {},
+            {},
+            self.label,
         )
 
 
@@ -341,7 +345,8 @@ def to_model_element(
     attributes: dict[str, Any],
     children: dict[str, ModelElement],
     refs: dict[str, str],
+    label: str | None = None,
 ) -> ModelElement:
     return ModelElement(
-        element.id, element.types, attributes, children, refs, element.location
+        element.id, element.types, attributes, children, refs, element.location, label
     )

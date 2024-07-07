@@ -46,7 +46,7 @@ class ServerFacade:
     def initializeExecution(self, args: dict) -> dict:
         return from_initialize_execution_response(
             self.service_handler.initialize_execution(
-                InitializeExecutionArguments(args["sourceFile"], args["bindings"])
+                InitializeExecutionArguments(args["sourceFile"], args["entries"])
             )
         )
 
@@ -72,7 +72,7 @@ class ServerFacade:
                     args["sourceFile"],
                     args["typeId"],
                     args["stepId"],
-                    args["bindings"],
+                    args["entries"],
                 )
             )
         )

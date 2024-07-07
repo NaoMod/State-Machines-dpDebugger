@@ -133,7 +133,7 @@ class ServiceHandler:
         self._check_runtime_exists(args.sourceFile)
 
         return self.runtimes[args.sourceFile].check_breakpoint(
-            args.typeId, args.stepId, args.bindings
+            args.typeId, args.stepId, args.entries
         )
 
     def get_available_steps(

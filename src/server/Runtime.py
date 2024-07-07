@@ -86,7 +86,7 @@ class Runtime:
         return self.available_steps
 
     def check_breakpoint(
-        self, type_id: str, step_id: str, bindings: dict
+        self, type_id: str, step_id: str, entries: dict
     ) -> lrpModule.CheckBreakpointResponse:
         if type_id not in [x.id for x in breakpoints]:
             raise UnknownBreakpointTypeError(type_id)
@@ -95,7 +95,7 @@ class Runtime:
         assert step_id in self.available_steps, f"No step with id {step_id}."
         selected_step: Step = self.available_steps[step_id]
 
-        message: str | None = selected_step.check_breakpoint(type_id, bindings)
+        message: str | None = selected_step.check_breakpoint(type_id, entries)
         is_activated = message is not None
 
         return lrpModule.CheckBreakpointResponse(is_activated, message)
@@ -204,7 +204,7 @@ class Step:
         pass
 
     @abstractmethod
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         pass
 
     @abstractmethod
@@ -330,11 +330,11 @@ class TransitionStep(CompositeStep):
 
         assert False, "Step already completed."
 
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         if type == "transitionFired":
             return (
-                f"Transition {self.transition.source.name} -> {self.transition.target.name} is about to be fired."
-                if self.transition.id == bindings["t"]
+                f"Transition {self.transition.label} is about to be fired."
+                if self.transition.id == entries["t"]
                 else None
             )
 
@@ -352,7 +352,7 @@ class ActivateEventStep(AtomicStep):
         self.runtime.current_event = self.event
         self._is_completed = True
 
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         return
 
 
@@ -386,7 +386,7 @@ class ActivateTransitionStep(AtomicStep):
         self.runtime.current_transition = self.transition
         self._is_completed = True
 
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         return
 
 
@@ -420,11 +420,11 @@ class ExecuteAssignmentStep(AtomicStep):
         self.runtime.executed_assignments += 1
         self._is_completed = True
 
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         if type == "assignmentExecuted":
             return (
-                f"Assignment {self.assignment.variable} = {self.assignment.expression.value()} is about to be executed."
-                if self.assignment.id == bindings["a"]
+                f"Assignment {self.assignment.label} is about to be executed."
+                if self.assignment.id == entries["a"]
                 else None
             )
 
@@ -445,10 +445,10 @@ class StateChangeStep(AtomicStep):
 
         self._is_completed = True
 
-    def check_breakpoint(self, type: str, bindings: dict) -> str | None:
+    def check_breakpoint(self, type: str, entries: dict) -> str | None:
         if type == "stateReached":
             state: stateMachineModule.State | None = self._find_reached_state(
-                self.target, bindings["s"]
+                self.target, entries["s"]
             )
             return (
                 f"State {state.name} is about to be reached."
@@ -458,7 +458,7 @@ class StateChangeStep(AtomicStep):
 
         if type == "stateExited":
             state: stateMachineModule.State | None = self._find_exited_state(
-                self.runtime.current_state, self.source, bindings["s"]
+                self.runtime.current_state, self.source, entries["s"]
             )
             return (
                 f"State {state.name} is about to be exited."

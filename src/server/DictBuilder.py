@@ -37,6 +37,9 @@ def from_model_element(model_element: ModelElement) -> dict:
     if model_element.location is not None:
         res["location"] = from_location(model_element.location)
 
+    if model_element.label is not None:
+        res["label"] = model_element.label
+
     return res
 
 
@@ -61,8 +64,8 @@ def from_breakpoint_parameter(parameter: BreakpointParameter) -> dict:
     if parameter.primitiveType is not None:
         res = {**res, "primitiveType": parameter.primitiveType.value}
 
-    if parameter.objectType is not None:
-        res = {**res, "objectType": parameter.objectType}
+    if parameter.elementType is not None:
+        res = {**res, "elementType": parameter.elementType}
 
     return res
 

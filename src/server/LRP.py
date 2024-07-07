@@ -48,10 +48,10 @@ class InitializeExecutionArguments(Arguments):
 
     Attributes:
         sourceFile (str): source file targeted by the request.
-        bindings: (dict[str, Any]): arbitrary arguments necessary for the initialization of a runtime state.
+        entries: (dict[str, Any]): arbitrary arguments necessary for the initialization of a runtime state.
     """
 
-    bindings: dict[str, Any]
+    entries: dict[str, Any]
 
 
 class InitializeExecutionResponse(Response):
@@ -124,12 +124,12 @@ class CheckBreakpointArguments(Arguments):
         sourceFile (str): source file targeted by the request.
         typeId (str): identifier of the breakpoint type.
         stepId (str): identifier of the step on which to check the breakpoint.
-        bindings ([str, Any]): arbitrary arguments required to check the breakpoint.
+        entries ([str, Any]): arbitrary arguments required to check the breakpoint.
     """
 
     typeId: str
     stepId: str
-    bindings: dict[str, Any]
+    entries: dict[str, Any]
 
 
 @dataclass
@@ -164,6 +164,7 @@ class ModelElement:
     children: dict[str, ModelElement | list[ModelElement]]
     refs: dict[str, str | list[str]]
     location: Location | None = None
+    label: str | None = None
 
 
 @dataclass
@@ -208,22 +209,22 @@ class BreakpointParameter:
         name (str): name of the parameter.
         type (BreakpointParameterType): type of the parameter.
         isMultivalued (bool): true is the parameter is a collection, false otherwise.
-        primitiveType (PrimitiveType | None): primitive type of the parameter. Exactly one of `primitiveType` and `objectType` must be set.
-        objectType (str | None): object type of the object parameter. If the object is a model element, the type is the same as defined in `ModelElement.types`. Exactly one of `primitiveType` and `objectType` must be set.
+        primitiveType (PrimitiveType | None): primitive type of the parameter. Exactly one of `primitiveType` and `elementType` must be set.
+        elementType (str | None): object type of the object parameter. If the object is a model element, the type is the same as defined in `ModelElement.types`. Exactly one of `primitiveType` and `elementType` must be set.
     """
 
     name: str
     type: BreakpointParameterType
     isMultivalued: bool = False
     primitiveType: PrimitiveType | None = None
-    objectType: str | None = None
+    elementType: str | None = None
 
 
 class BreakpointParameterType(Enum):
     """Type of a breakpoint parameter."""
 
     PRIMITIVE = "primitive"
-    OBJECT = "object"
+    ELEMENT = "element"
 
 
 class PrimitiveType(Enum):
