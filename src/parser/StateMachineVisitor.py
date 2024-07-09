@@ -1,4 +1,4 @@
-# Generated from ../../StateMachine.g4 by ANTLR 4.10.1
+# Generated from StateMachine.g4 by ANTLR 4.10.1
 from antlr4 import *
 if __name__ is not None and "." in __name__:
     from .StateMachineParser import StateMachineParser
@@ -36,6 +36,11 @@ class StateMachineVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by StateMachineParser#transition.
     def visitTransition(self, ctx:StateMachineParser.TransitionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by StateMachineParser#guard.
+    def visitGuard(self, ctx:StateMachineParser.GuardContext):
         return self.visitChildren(ctx)
 
 

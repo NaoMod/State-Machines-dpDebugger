@@ -215,6 +215,7 @@ class Transition(ASTElement):
         source: State,
         target: State,
         trigger: str | None = None,
+        guard: Guard | None = None,
         assignments: list[Assignment] | None = None,
         location: Location | None = None,
         parser_ctx: ParserRuleContext | None = None,
@@ -223,6 +224,7 @@ class Transition(ASTElement):
         self.source = source
         self.target = target
         self.trigger = trigger
+        self.guard = guard
         self.assignments = assignments
         self.label = f"{source.name} -> {target.name}"
 
@@ -234,11 +236,34 @@ class Transition(ASTElement):
 
         children = {}
 
+        if self.guard is not None:
+            children["guard"] = self.guard.to_model_element()
+
         if len(self.assignments) > 0:
             children["assignments"] = [a.to_model_element() for a in self.assignments]
 
         return to_model_element(
             self, {"trigger": self.trigger}, {**children}, {**refs}, self.label
+        )
+
+
+class Guard(ASTElement):
+    def __init__(self, variable: str, expression: Expression, comparator: Comparator):
+        super().__init__(["Guard"])
+        self.variable = variable
+        self.expression = expression
+        self.comparator = comparator
+
+    def to_model_element(self) -> ModelElement:
+        return to_model_element(
+            self,
+            {
+                "variable": self.variable,
+                "expression": self.expression.value(),
+                "comparator": self.comparator.value,
+            },
+            {},
+            {},
         )
 
 
@@ -325,6 +350,15 @@ class VariableAtomicExpression(Expression):
 
     def accept(self, evaluator: ExpressionEvaluator) -> float:
         return evaluator.evaluate_variable_atomic_expression(self)
+
+
+class Comparator(Enum):
+    EQ = "="
+    NOT_EQ = "!="
+    INF = "<"
+    INF_EQ = "<="
+    SUP = ">"
+    SUP_EQ = ">="
 
 
 class Operand(Enum):

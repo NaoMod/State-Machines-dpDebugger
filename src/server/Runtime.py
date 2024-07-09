@@ -30,10 +30,13 @@ class Runtime:
             state_machine.initial_state.get_nested_initial_state()
         )
         self.variables: dict[str, float] = {}
-        self.evaluator: ExpressionEvaluator = ExpressionEvaluator(self.variables)
+        self.expression_evaluator: ExpressionEvaluator = ExpressionEvaluator(self.variables)
+        self.guard_evaluator: GuardEvaluator = GuardEvaluator(self.expression_evaluator, self.variables)
+
+        self.transitions_fired: int = 0
 
         self.ongoing_composite_step: Step | None = None
-        self.available_steps: dict[str, Step] | None = None
+        self.available_steps: dict[str, Step] | None = self._compute_available_steps()
 
     def execute_atomic_step(self, step_id: str) -> AtomicStep:
         assert self.available_steps is not None, "No steps to compute from."
@@ -43,7 +46,7 @@ class Runtime:
 
         selected_step.execute()
         self.ongoing_composite_step = selected_step.find_ongoing_step()
-        self.available_steps = None
+        self.available_steps = self._compute_available_steps()
         return selected_step
 
     def enter_composite_step(self, step_id: str) -> None:
@@ -53,37 +56,7 @@ class Runtime:
         assert selected_step.is_composite, "Step must be composite."
 
         self.ongoing_composite_step = selected_step
-        self.available_steps = None
-
-    def compute_available_steps(self) -> dict[str, Step]:
-        # Only compute once for the same runtime state
-        if self.available_steps is not None:
-            return self.available_steps
-
-        if self.current_state.is_final:
-            self.available_steps = {}
-            return self.available_steps
-
-        # Top-level steps
-        if self.ongoing_composite_step is None:
-            self.available_steps = {}
-            if self.current_event is None:
-                for event in self._find_possible_events():
-                    step: ActivateEventStep = ActivateEventStep(event, self)
-                    self.available_steps[step.id] = step
-
-            else:
-                for transition in self._find_possible_transitions(self.current_event):
-                    step: TransitionStep = TransitionStep(transition, self)
-                    self.available_steps[step.id] = step
-
-        else:
-            self.available_steps = {
-                step.id: step
-                for step in self.ongoing_composite_step.get_contained_steps()
-            }
-
-        return self.available_steps
+        self.available_steps = self._compute_available_steps()
 
     def check_breakpoint(
         self, type_id: str, step_id: str, entries: dict
@@ -101,7 +74,31 @@ class Runtime:
         return lrpModule.CheckBreakpointResponse(is_activated, message)
 
     def evaluate(self, expression: stateMachineModule.Expression) -> float:
-        return self.evaluator.evaluate(expression)
+        return self.expression_evaluator.evaluate(expression)
+    
+    def _compute_available_steps(self) -> dict[str, Step]:
+        if self.current_state.is_final:
+            return {}
+        
+        if self.ongoing_composite_step is not None:
+            return {
+                step.id: step
+                for step in self.ongoing_composite_step.get_contained_steps()
+            }
+
+        # Top-level steps
+        steps: dict[str, Step] = {}
+        if self.current_event is None:
+            for event in self._find_possible_events():
+                step: ActivateEventStep = ActivateEventStep(event, self)
+                steps[step.id] = step
+
+        else:
+            for transition in self._find_possible_transitions(self.current_event):
+                step: TransitionStep = TransitionStep(transition, self)
+                steps[step.id] = step
+
+        return steps
 
     def _find_possible_events(self) -> list[str]:
         available_transitions: list[stateMachineModule.Transition] = (
@@ -123,12 +120,35 @@ class Runtime:
         while state is not None:
             for transition in state.outgoing_transitions:
                 if event is None or event == transition.trigger:
-                    available_transitions.append(transition)
+                    if transition.guard is None or self.guard_evaluator.evaluate(transition.guard):
+                        available_transitions.append(transition)
 
             state = state.parent_state
 
         return available_transitions
 
+@dataclass
+class GuardEvaluator:
+    expression_evaluator: ExpressionEvaluator
+    variables: dict[str, float]
+
+    def evaluate(self, guard: stateMachineModule.Guard) -> bool:
+        expression_value: float = self.expression_evaluator.evaluate(guard.expression)
+        variable_value: float = self.variables[guard.variable]
+
+        match guard.comparator:
+            case stateMachineModule.Comparator.EQ:
+                return variable_value == expression_value
+            case stateMachineModule.Comparator.NOT_EQ:
+                return variable_value != expression_value
+            case stateMachineModule.Comparator.INF:
+                return variable_value < expression_value
+            case stateMachineModule.Comparator.INF_EQ:
+                return variable_value <= expression_value
+            case stateMachineModule.Comparator.SUP:
+                return variable_value > expression_value
+            case stateMachineModule.Comparator.SUP_EQ:
+                return variable_value >= expression_value
 
 @dataclass
 class ExpressionEvaluator:
@@ -442,6 +462,7 @@ class StateChangeStep(AtomicStep):
         self.runtime.current_event = None
         self.runtime.current_transition = None
         self.runtime.executed_assignments = 0
+        self.runtime.transitions_fired += 1
 
         self._is_completed = True
 
@@ -516,10 +537,16 @@ class RuntimeState:
         self.current_state = runtime.current_state
         self.variables = runtime.variables
         self.current_event: str | None = runtime.current_event
+        self.current_transition: stateMachineModule.Transition | None = runtime.current_transition
+        self.transitions_fired: int = runtime.transitions_fired
 
     def to_model_element(self) -> lrpModule.ModelElement:
+        refs: dict[str, str] = {}
+        if self.current_transition is not None:
+            refs["currentTransition"] = self.current_transition.id
+
         if self.current_state.is_final:
-            attributes: dict = {"currentState": "FINAL"}
+            attributes: dict = {"transitionsFired": self.transitions_fired, "currentState": "FINAL"}
             if self.current_event:
                 attributes["currentEvent"] = self.current_event
 
@@ -528,10 +555,10 @@ class RuntimeState:
                 ["RuntimeState"],
                 attributes,
                 {"variables": VariablesRegistry(self.variables).to_model_element()},
-                {},
+                refs,
             )
 
-        attributes: dict = {}
+        attributes: dict = {"transitionsFired": self.transitions_fired}
         if self.current_event:
             attributes["currentEvent"] = self.current_event
 
@@ -540,7 +567,7 @@ class RuntimeState:
             ["RuntimeState"],
             attributes,
             {"variables": VariablesRegistry(self.variables).to_model_element()},
-            {"currentState": self.current_state.id},
+            {**refs, "currentState": self.current_state.id},
         )
 
 

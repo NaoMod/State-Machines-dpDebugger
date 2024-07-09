@@ -16,6 +16,12 @@ FINAL: 'FINAL';
 TEXT: '\'' (UPPERCASE | LOWERCASE)+ '\'';
 NAME: UPPERCASE (LOWERCASE | UPPERCASE)*;
 
+NOT_EQ: '!=';
+INF: '<';
+INF_EQ: '<=';
+SUP: '>';
+SUP_EQ: '>=';
+
 WS: [ \t\r\n] -> skip;
 
 /* Parser rules */
@@ -35,8 +41,10 @@ state_rule: (simple_state | composite_state);
 initial_state: INITIAL TRANSITION_SYMBOL target = NAME ';';
 
 transition:
-	TRANSITION_SYMBOL target = (NAME | FINAL) '[' input = TEXT (
-		'/' assignments += separated_assignment*
-	)? ']' ';';
+	TRANSITION_SYMBOL target = (NAME | FINAL) ':' input = TEXT 
+	('[' guard ']')? 
+	('/' '{' assignments += separated_assignment* '}')? ';';
+
+guard: variable (EQ | NOT_EQ | INF | INF_EQ | SUP | SUP_EQ) expression;
 
 separated_assignment: assignment ';';

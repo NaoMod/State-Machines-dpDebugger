@@ -7,8 +7,10 @@ from server.LRP import Location
 from .StateMachine import (
     Assignment,
     BinaryExpression,
+    Comparator,
     CompositeState,
     Expression,
+    Guard,
     InitialState,
     NumberAtomicExpression,
     Operand,
@@ -118,6 +120,9 @@ class BuildASTVisitor(StateMachineVisitor):
     def visitTransition(self, ctx: StateMachineParser.TransitionContext) -> Transition:
         start_token: Token = ctx.TRANSITION_SYMBOL().symbol
         end_token: Token = ctx.target
+        guard: Guard | None = (
+            ctx.guard().accept(self) if ctx.guard() is not None else None
+        )
         assignments: list[Assignment] = [
             assignment.accept(self) for assignment in ctx.assignments
         ]
@@ -133,6 +138,7 @@ class BuildASTVisitor(StateMachineVisitor):
                 self.current_transition_parent,
                 SimpleState(parent_state=self.current_state_parent, is_final=True),
                 ctx.input_.text.strip("'"),
+                guard,
                 assignments,
                 location,
                 ctx,
@@ -142,10 +148,18 @@ class BuildASTVisitor(StateMachineVisitor):
                 self.current_transition_parent,
                 self.state_registry.get(ctx.target.text),
                 ctx.input_.text.strip("'"),
+                guard,
                 assignments,
                 location,
                 ctx,
             )
+
+    def visitGuard(self, ctx: StateMachineParser.GuardContext):
+        return Guard(
+            ctx.variable().getText(),
+            ctx.expression().accept(self),
+            self._find_comparator(ctx)
+        )
 
     def visitSeparated_assignment(
         self, ctx: StateMachineParser.Separated_assignmentContext
@@ -215,6 +229,29 @@ class BuildASTVisitor(StateMachineVisitor):
 
         if ctx.POW() is not None:
             return Operand.POW
+
+        return None
+
+    def _find_comparator(
+        self, ctx: StateMachineParser.GuardContext
+    ) -> Comparator | None:
+        if ctx.EQ() is not None:
+            return Comparator.EQ
+
+        if ctx.NOT_EQ() is not None:
+            return Comparator.NOT_EQ
+
+        if ctx.INF() is not None:
+            return Comparator.INF
+
+        if ctx.INF_EQ() is not None:
+            return Comparator.INF_EQ
+
+        if ctx.SUP() is not None:
+            return Comparator.SUP
+
+        if ctx.SUP_EQ() is not None:
+            return Comparator.SUP_EQ
 
         return None
 

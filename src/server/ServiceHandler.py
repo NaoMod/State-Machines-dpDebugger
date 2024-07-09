@@ -155,7 +155,7 @@ class ServiceHandler:
         self._check_runtime_exists(args.sourceFile)
 
         runtime = self.runtimes[args.sourceFile]
-        available_steps = list(runtime.compute_available_steps().values())
+        available_steps = list(runtime.available_steps.values())
 
         return GetAvailableStepsResponse(
             [step.to_LRP_step() for step in available_steps]
